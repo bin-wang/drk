@@ -7,6 +7,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Setup build environment
         env:
           DEBIAN_FRONTEND: noninteractive
