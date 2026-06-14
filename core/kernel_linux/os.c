@@ -1648,7 +1648,7 @@ os_heap_get_commit_limit(size_t *commit_used, size_t *commit_limit)
 }
 
 void
-thread_yield()
+thread_yield(void)
 {
     SPINLOCK_PAUSE();
 }
