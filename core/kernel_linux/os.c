@@ -2305,7 +2305,7 @@ mutex_wait_contended_lock(mutex_t *lock)
     /* we now have to undo our earlier request */
     d_r_atomic_dec_and_test(&lock->lock_requests);
 
-    while (!mutex_trylock(lock)) {
+    while (!d_r_mutex_trylock(lock)) {
 #ifdef CLIENT_INTERFACE
         if (dcontext != NULL && IS_CLIENT_THREAD(dcontext) &&
             (mutex_t *)dcontext->client_data->client_grab_mutex == lock)
@@ -2396,21 +2396,21 @@ destroy_event(event_t e)
 void
 signal_event(event_t e)
 {
-    mutex_lock(&e->lock);
+    d_r_mutex_lock(&e->lock);
     e->signaled = true;
     LOG(THREAD_GET, LOG_THREADS, 3, "thread %d signalling event " PFX "\n",
         get_thread_id(), e);
-    mutex_unlock(&e->lock);
+    d_r_mutex_unlock(&e->lock);
 }
 
 void
 reset_event(event_t e)
 {
-    mutex_lock(&e->lock);
+    d_r_mutex_lock(&e->lock);
     e->signaled = false;
     LOG(THREAD_GET, LOG_THREADS, 3, "thread %d resetting event " PFX "\n",
         get_thread_id(), e);
-    mutex_unlock(&e->lock);
+    d_r_mutex_unlock(&e->lock);
 }
 
 /* FIXME: compare use and implementation with  man pthread_cond_wait */
@@ -2426,16 +2426,16 @@ wait_for_event(event_t e)
         e);
     while (true) {
         if (e->signaled) {
-            mutex_lock(&e->lock);
+            d_r_mutex_lock(&e->lock);
             if (!e->signaled) {
                 /* some other thread beat us to it */
                 LOG(THREAD, LOG_THREADS, 3, "thread %d was beaten to event " PFX "\n",
                     get_thread_id(), e);
-                mutex_unlock(&e->lock);
+                d_r_mutex_unlock(&e->lock);
             } else {
                 /* reset the event */
                 e->signaled = false;
-                mutex_unlock(&e->lock);
+                d_r_mutex_unlock(&e->lock);
                 LOG(THREAD, LOG_THREADS, 3,
                     "thread %d finished waiting for event " PFX "\n", get_thread_id(), e);
                 return;
