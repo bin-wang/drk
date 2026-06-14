@@ -4026,15 +4026,15 @@ unit_test_atomic_ops(void)
     ATOMIC_8BYTE_WRITE(&count3, value64, false);
     EXPECT(count3, -1);
 #    endif
-    EXPECT(d_r_atomic_inc_and_test(&count1), true);      /* result is 0 */
-    EXPECT(d_r_atomic_inc_and_test(&count1), false);     /* result is 1 */
-    EXPECT(d_r_atomic_dec_and_test(&count1), false);     /* init value is 1, result is 0 */
-    EXPECT(d_r_atomic_dec_and_test(&count1), true);      /* init value is 0, result is -1 */
-    EXPECT(d_r_atomic_dec_becomes_zero(&count1), false); /* result is -2 */
+    EXPECT(d_r_atomic_inc_and_test(&count1), true);  /* result is 0 */
+    EXPECT(d_r_atomic_inc_and_test(&count1), false); /* result is 1 */
+    EXPECT(d_r_atomic_dec_and_test(&count1), false); /* init value is 1, result is 0 */
+    EXPECT(d_r_atomic_dec_and_test(&count1), true);  /* init value is 0, result is -1 */
+    EXPECT(d_r_atomic_dec_becomes_zero(&count1), false);        /* result is -2 */
     EXPECT(atomic_compare_exchange_int(&count1, -3, 1), false); /* no exchange */
     EXPECT(count1, -2);
     EXPECT(atomic_compare_exchange_int(&count1, -2, 1), true); /* exchange */
-    EXPECT(d_r_atomic_dec_becomes_zero(&count1), true);            /* result is 0 */
+    EXPECT(d_r_atomic_dec_becomes_zero(&count1), true);        /* result is 0 */
     EXPECT(d_r_atomic_dec_and_test(&count1), true); /* init value is 0, result is -1 */
     EXPECT(d_r_atomic_dec_and_test(&count1), true); /* init value is -1, result is -2 */
     ATOMIC_4BYTE_WRITE(&count1, 0, false);

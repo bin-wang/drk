@@ -690,7 +690,8 @@ set_dynamo_options_common(options_t *options, const char *optstr, bool for_this_
     ASSERT(!OPTIONS_PROTECTED());
 
 #ifdef LINUX_KERNEL
-    /* Kernel stack frames are limited to 4096 bytes; use static (safe under options_lock). */
+    /* Kernel stack frames are limited to 4096 bytes; use static (safe under
+     * options_lock). */
     static char badopt[MAX_OPTION_LENGTH];
     static char wordbuffer[MAX_OPTION_LENGTH];
 #else
