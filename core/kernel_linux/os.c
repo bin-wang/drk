@@ -1,6 +1,4 @@
 #include "globals.h"
-#include "hypercall.h"
-#include "hypercall_guest.h"
 #include "kernel_interface.h"
 #include "module_shared.h"
 #include "page_table.h"
