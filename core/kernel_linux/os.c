@@ -1695,14 +1695,14 @@ os_wait_thread_terminated(dcontext_t *dcontext)
 }
 
 bool
-thread_get_mcontext(thread_record_t *tr, dr_mcontext_t *mc)
+thread_get_mcontext(thread_record_t *tr, priv_mcontext_t *mc)
 {
     ASSERT_NOT_PORTED(false);
     return true;
 }
 
 bool
-thread_set_mcontext(thread_record_t *tr, dr_mcontext_t *mc)
+thread_set_mcontext(thread_record_t *tr, priv_mcontext_t *mc)
 {
     ASSERT_NOT_PORTED(false);
     return true;
@@ -2612,13 +2612,13 @@ signal_thread_inherit(dcontext_t *dcontext, void *clone_record)
 }
 
 void
-thread_set_self_context(void *cxt)
+thread_set_self_context(void *cxt, bool is_detach_external)
 {
     ASSERT_NOT_PORTED(false);
 }
 
 void
-thread_set_self_mcontext(dr_mcontext_t *mc)
+thread_set_self_mcontext(priv_mcontext_t *mc, bool is_detach_external)
 {
     ASSERT_NOT_PORTED(false);
 }
@@ -2637,7 +2637,7 @@ receive_pending_signal(dcontext_t *dcontext)
 }
 
 void
-os_forge_exception(app_pc target_pc, exception_type_t type)
+os_forge_exception(app_pc target_pc, dr_exception_type_t type)
 {
     ASSERT_NOT_PORTED(false);
 }
