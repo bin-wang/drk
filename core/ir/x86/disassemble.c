@@ -333,8 +333,9 @@ instr_opcode_name_suffix(instr_t *instr)
                 return "d";
             else if (sz == 8)
                 return "q";
+
+            DR_FALLTHROUGH;
         }
-        DR_FALLTHROUGH;
         case OP_pusha:
         case OP_popa: {
             uint sz = instr_memory_reference_size(instr);
@@ -342,8 +343,9 @@ instr_opcode_name_suffix(instr_t *instr)
                 return "w";
             else if (sz == 32)
                 return "d";
+
+            DR_FALLTHROUGH;
         }
-        DR_FALLTHROUGH;
         case OP_iret: {
             uint sz = instr_memory_reference_size(instr);
             if (sz == 6)
