@@ -1562,7 +1562,7 @@ opnd_type_ok(decode_info_t *di /*prefixes field is IN/OUT; x86_mode is IN*/, opn
             if (!reg_is_strictly_zmm(opnd_get_index(opnd)))
                 return false;
         }
-        /* fall through */
+        DR_FALLTHROUGH;
     case TYPE_FLOATMEM:
     case TYPE_M: return mem_size_ok(di, opnd, optype, opsize);
     case TYPE_E:
@@ -1801,7 +1801,7 @@ opnd_type_ok(decode_info_t *di /*prefixes field is IN/OUT; x86_mode is IN*/, opn
     case TYPE_K_MODRM:
         if (mem_size_ok(di, opnd, optype, opsize))
             return true;
-        /* fall through */
+        DR_FALLTHROUGH;
     case TYPE_K_MODRM_R:
         /* Same comment above. */
         return (opnd_is_reg(opnd) && reg_is_opmask(opnd_get_reg(opnd)));

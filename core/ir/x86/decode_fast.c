@@ -513,7 +513,7 @@ decode_sizeof_ex(void *drcontext, byte *start_pc, int *num_prefixes, uint *rip_r
             case REPNE_PREFIX_OPCODE:
             case REP_PREFIX_OPCODE: /* REP */
                 rep_prefix = true;
-                /* fall through */
+                DR_FALLTHROUGH;
             case RAW_PREFIX_lock: /* LOCK */
             case CS_SEG_OPCODE:   /* segment overrides */
             case DS_SEG_OPCODE:
@@ -535,7 +535,7 @@ decode_sizeof_ex(void *drcontext, byte *start_pc, int *num_prefixes, uint *rip_r
                 if (X64_MODE_DC(dcontext) || TEST(0x10, *(pc + 1))) {
                     evex_prefix = true;
                 }
-                /* Fall-through is deliberate, EVEX is handled through VEX below */
+                DR_FALLTHROUGH;
             }
             case VEX_3BYTE_PREFIX_OPCODE:
             case VEX_2BYTE_PREFIX_OPCODE: {
@@ -1367,7 +1367,7 @@ decode_cti(void *drcontext, byte *pc, instr_t *instr)
                 break;
             case EVEX_PREFIX_OPCODE:
                 instr_set_prefix_flag(instr, PREFIX_EVEX);
-                /* fall-through */
+                DR_FALLTHROUGH;
             case VEX_3BYTE_PREFIX_OPCODE: {
                 /* EVEX and VEX 3-byte prefixes imply instruction opcodes by encoding mm
                  * bits in the second prefix byte. In theory, there are 5 VEX mm bits, but
