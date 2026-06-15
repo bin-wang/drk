@@ -204,7 +204,8 @@ os_module_area_reset(module_area_t *ma HEAPACCT(which_heap_t which))
 }
 
 generic_func_t
-get_proc_address_ex(module_handle_t lib, const char *name, bool *is_indirect_code OUT)
+get_proc_address_ex(module_handle_t lib, const char *name,
+                    bool *is_indirect_code DR_PARAM_OUT)
 {
     ASSERT_NOT_PORTED(false);
     return 0;
@@ -491,7 +492,7 @@ os_tls_exit(local_state_t *local_state, bool other_thread)
 }
 
 bool
-os_tls_calloc(OUT uint *offset, uint num_slots, uint alignment)
+os_tls_calloc(DR_PARAM_OUT uint *offset, uint num_slots, uint alignment)
 {
     ASSERT_NOT_PORTED(false);
     return true;
@@ -1756,8 +1757,8 @@ shared_library_error(char *buf, int maxlen)
 }
 
 bool
-shared_library_bounds(IN shlib_handle_t lib, IN byte *addr, OUT byte **start,
-                      OUT byte **end)
+shared_library_bounds(DR_PARAM_IN shlib_handle_t lib, DR_PARAM_IN byte *addr,
+                      DR_PARAM_OUT byte **start, DR_PARAM_OUT byte **end)
 {
     return kernel_shared_library_bounds(lib, addr, start, end);
 }
@@ -1953,7 +1954,7 @@ os_delete_mapped_file(const char *filename)
 }
 
 byte *
-os_map_file(file_t f, size_t *size INOUT, uint64 offs, app_pc addr, uint prot,
+os_map_file(file_t f, size_t *size DR_PARAM_INOUT, uint64 offs, app_pc addr, uint prot,
             bool copy_on_write, bool image, bool fixed)
 {
     ASSERT_NOT_PORTED(false);
@@ -2098,7 +2099,7 @@ vm_region_prot(const vm_region_t *region)
 }
 
 bool
-query_memory_ex_from_os(const byte *pc, OUT dr_mem_info_t *info)
+query_memory_ex_from_os(const byte *pc, DR_PARAM_OUT dr_mem_info_t *info)
 {
     vm_region_t region;
     /* TODO(peter): page_table_get_region is way too slow. For now, just get the
@@ -2553,7 +2554,7 @@ os_check_option_compatibility(void)
 }
 
 void
-report_diagnostics(IN const char *message, IN const char *name,
+report_diagnostics(DR_PARAM_IN const char *message, DR_PARAM_IN const char *name,
                    security_violation_t violation_type)
 {
     /* Not implemented in the original Linux version. */
