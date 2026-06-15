@@ -12,7 +12,6 @@
 #include "dynamorio_module_interface.h"
 #include "dynamorio_module_assert_interface.h"
 #include "kernel_interface.h"
-#include "hypercall_guest.h"
 #include "page_table.h"
 
 /* Used by kernel_find_dynamorio_module_bounds. */
@@ -167,11 +166,6 @@ kernel_module_init(size_t dr_heap_size)
     kallsyms_lookup_name_ptr = (void *)kp.addr;
     unregister_kprobe(&kp);
 
-#ifdef HYPERCALL_DEBUGGING
-    if (!hypercall_init()) {
-        return false;
-    }
-#endif
     /* Some OS interfaces, such as get_thread_private_dcontext, rely on the TLS
      * initially being all 0. */
     zero_cpu_private_data();
