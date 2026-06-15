@@ -3523,7 +3523,7 @@ instr_encode_arch(dcontext_t *dcontext, instr_t *instr, byte *copy_pc, byte *fin
         instr_set_rip_rel_pos(instr, (byte)(disp_relativize_at - di.start_pc));
     }
 
-#if DEBUG_DISABLE /* turn back on if want to debug */
+#ifdef DEBUG_DISABLE /* turn back on if want to debug */
     if (d_r_stats->loglevel >= 3) {
         byte *pc = cache_pc;
         LOG(THREAD, LOG_EMIT, 3, "instr_encode on: ");
