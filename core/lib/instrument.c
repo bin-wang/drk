@@ -1421,13 +1421,13 @@ dr_nudge_client_ex(process_id_t process_id, client_id_t client_id, uint64 argume
             if (client_libs[i].id == client_id) {
                 if (client_libs[i].nudge_callbacks.num == 0) {
                     CLIENT_ASSERT(false, "dr_nudge_client: no nudge handler registered");
-                    return false;
+                    return (dr_config_status_t)false;
                 }
                 return nudge_internal(process_id, NUDGE_GENERIC(client), argument,
                                       client_id, timeout_ms);
             }
         }
-        return false;
+        return (dr_config_status_t)false;
     } else {
         return nudge_internal(process_id, NUDGE_GENERIC(client), argument, client_id,
                               timeout_ms);
@@ -1529,7 +1529,7 @@ instrument_fork_init(dcontext_t *dcontext)
 void
 instrument_low_on_memory(void)
 {
-    call_all(low_on_memory_callbacks, int (*)());
+    call_all(low_on_memory_callbacks, int (*)(void));
 }
 
 /* PR 536058: split the exit event from thread cleanup, to provide a
