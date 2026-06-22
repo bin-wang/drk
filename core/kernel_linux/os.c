@@ -714,6 +714,8 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
             return INTERRUPTED_DYNAMORIO;
         }
     }
+    ASSERT_NOT_REACHED();
+    return INTERRUPTED_DYNAMORIO;
 }
 
 bool
