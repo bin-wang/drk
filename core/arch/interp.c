@@ -4041,7 +4041,7 @@ build_bb_ilist(dcontext_t *dcontext, build_bb_t *bb)
             return;
         }
     }
-#ifdef UNIX
+#if defined(UNIX) && !defined(LINUX_KERNEL)
     /* XXX: i#1247: After a call to a native module throught plt, DR
      * loses control of the app b/c of _dl_runtime_resolve
      */
