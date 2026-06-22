@@ -853,7 +853,7 @@ free_callback_list(callback_list_t *vec)
 }
 
 static void
-free_all_callback_lists()
+free_all_callback_lists(void)
 {
     free_callback_list(&exit_callbacks);
     free_callback_list(&post_attach_callbacks);
@@ -907,7 +907,7 @@ instrument_exit_event(void)
     /* support dr_get_mcontext() from the exit event */
     if (!standalone_library)
         get_thread_private_dcontext()->client_data->mcontext_in_dcontext = true;
-    call_all(exit_callbacks, int (*)(),
+    call_all(exit_callbacks, int (*)(void),
              /* It seems the compiler is confused if we pass no var args
               * to the call_all macro.  Bogus NULL arg */
              NULL);
@@ -916,13 +916,13 @@ instrument_exit_event(void)
 void
 instrument_post_attach_event(void)
 {
-    call_all(post_attach_callbacks, int (*)(), NULL);
+    call_all(post_attach_callbacks, int (*)(void), NULL);
 }
 
 void
 instrument_pre_detach_event(void)
 {
-    call_all(pre_detach_callbacks, int (*)(), NULL);
+    call_all(pre_detach_callbacks, int (*)(void), NULL);
 }
 
 void
