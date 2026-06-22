@@ -6212,10 +6212,10 @@ dr_insert_cbr_instrumentation_help(void *drcontext, instrlist_t *ilist, instr_t 
 
     app_flags_ok = instr_get_prev(instr);
     if (has_fallthrough) {
-        ptr_uint_t fallthrough = address + instr_length(drcontext, instr);
+        ptr_uint_t fallthrough_addr = address + instr_length(drcontext, instr);
         CLIENT_ASSERT(!opnd_uses_reg(user_data, DR_REG_XBX),
                       "register ebx should not be used");
-        CLIENT_ASSERT(fallthrough > address, "wrong fallthrough address");
+        CLIENT_ASSERT(fallthrough_addr > address, "wrong fallthrough address");
         dr_insert_clean_call_ex(
             drcontext, ilist, instr, callee,
             /* Many users will ask for mcontexts; some will set; it doesn't seem worth
@@ -6228,7 +6228,7 @@ dr_insert_cbr_instrumentation_help(void *drcontext, instrlist_t *ilist, instr_t 
             /* target is 2nd parameter */
             OPND_CREATE_INTPTR(target),
             /* fall-throug is 3rd parameter */
-            OPND_CREATE_INTPTR(fallthrough),
+            OPND_CREATE_INTPTR(fallthrough_addr),
             /* branch direction (put in ebx below) is 4th parameter */
             opnd_create_reg(REG_XBX),
             /* user defined data is 5th parameter */
@@ -6514,8 +6514,8 @@ dr_insert_cbr_instrumentation_help(void *drcontext, instrlist_t *ilist, instr_t 
     }
 
     if (has_fallthrough) {
-        ptr_uint_t fallthrough = address + instr_length(drcontext, instr);
-        CLIENT_ASSERT(fallthrough > address, "wrong fallthrough address");
+        ptr_uint_t fallthrough_addr = address + instr_length(drcontext, instr);
+        CLIENT_ASSERT(fallthrough_addr > address, "wrong fallthrough address");
         dr_insert_clean_call_ex(
             drcontext, ilist, instr, callee,
             /* Many users will ask for mcontexts; some will set; it doesn't seem worth
@@ -6528,7 +6528,7 @@ dr_insert_cbr_instrumentation_help(void *drcontext, instrlist_t *ilist, instr_t 
             /* Target is 2nd parameter. */
             OPND_CREATE_INTPTR(target),
             /* Fall-through is 3rd parameter. */
-            OPND_CREATE_INTPTR(fallthrough),
+            OPND_CREATE_INTPTR(fallthrough_addr),
             /* Branch direction is 4th parameter. */
             opnd_create_reg(dir),
             /* User defined data is 5th parameter. */
