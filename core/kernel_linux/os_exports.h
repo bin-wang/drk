@@ -286,7 +286,8 @@ signal_fork_init(dcontext_t *dcontext);
 
 bool
 set_itimer_callback(dcontext_t *dcontext, int which, uint millisec,
-                    void (*func)(dcontext_t *, dr_mcontext_t *));
+                    void (*func)(dcontext_t *, priv_mcontext_t *),
+                    void (*func_api)(dcontext_t *, dr_mcontext_t *));
 
 uint
 get_itimer_frequency(dcontext_t *dcontext, int which);
