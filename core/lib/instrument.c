@@ -1990,7 +1990,7 @@ instrument_module_load_trigger(app_pc pc)
         if (ma != NULL && !TEST(MODULE_LOAD_EVENT, ma->flags)) {
             /* switch to write lock */
             os_get_module_info_unlock();
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
             /* i#3385: re-try to initialize dynamic information, because
              * it failed during the first flat-mmap that loaded the module.
              * We don't perform this if there are no clients, assuming
