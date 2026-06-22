@@ -31,9 +31,10 @@
 #    define ASM_XSP "esp"
 #endif
 
+app_pc vsyscall_page_start = NULL;
 app_pc vsyscall_syscall_end_pc = NULL;
 app_pc vsyscall_sysenter_return_pc = NULL;
-app_pc vsyscall_page_start = NULL;
+app_pc vsyscall_sysenter_displaced_pc = NULL;
 
 DR_API file_t our_stdin = 0;
 DR_API file_t our_stdout = 1;
