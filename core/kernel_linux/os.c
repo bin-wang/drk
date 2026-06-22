@@ -16,9 +16,7 @@
 #include "cr.h"
 #include "monitor.h"
 
-#ifdef CLIENT_INTERFACE
-#    include "instrument.h"
-#endif
+#include "instrument.h"
 
 /* For inline ASM. */
 #ifdef X64
@@ -88,10 +86,8 @@ typedef enum {
     INTERRUPTED_FRAGMENT,
     INTERRUPTED_GENCODE,
     INTERRUPTED_DYNAMORIO,
-#ifdef CLIENT_INTERFACE
     INTERRUPTED_CLIENT_LIB,
     INTERRUPTED_CLIENT_GENCODE,
-#endif
 } interrupted_location_t;
 
 typedef struct {
@@ -164,9 +160,7 @@ typedef struct {
 typedef struct os_local_state_t {
     local_state_extended_t state;
     struct os_local_state_t *self;
-#ifdef CLIENT_INTERFACE
     void *client_tls[MAX_NUM_CLIENT_TLS];
-#endif
 } os_local_state_t;
 
 /* Offsets from the GS segment. */
@@ -637,18 +631,12 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
              * kernel entry gencode, then interrupts are disabled and we
              * shouldn't trigger exceptions). Hence it's safe to call in_fcache.
              */
-#ifdef CLIENT_INTERFACE
             if (in_fcache(pc)) {
-#else
-            ASSERT(in_fcache(pc));
-#endif
                 return INTERRUPTED_FRAGMENT;
-#ifdef CLIENT_INTERFACE
             } else {
                 ASSERT(is_dynamo_address(frame->xip));
                 return INTERRUPTED_CLIENT_GENCODE;
             }
-#endif
         } else {
             /* At this point, we could be
              *  - in some DR code that uses exceptions (e.g., TRY..EXCEPT)
@@ -668,11 +656,9 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
              */
             if (is_in_dynamo_dll(pc)) {
                 return INTERRUPTED_DYNAMORIO;
-#ifdef CLIENT_INTERFACE
             } else if (is_in_client_lib(pc)) {
                 /* clean callee */
                 return INTERRUPTED_CLIENT_LIB;
-#endif
             } else {
                 /* Could either be in clean call preparation or a crashing clean
                  * call argument. If we're in the kernel code, then in_fcache
@@ -701,10 +687,8 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
              */
             ASSERT_NOT_REACHED();
             return INTERRUPTED_GENCODE;
-#ifdef CLIENT_INTERFACE
         } else if (is_in_client_lib(pc)) {
             return INTERRUPTED_CLIENT_LIB;
-#endif
         } else {
             /* If we're in kernel code called by DynamoRIO, then we're screwed
              * because interrupts should be disabled and we don't know how to
@@ -1069,7 +1053,6 @@ handle_kernel_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
         ASSERT_NOT_REACHED();
         os_terminate(dcontext, TERMINATE_PROCESS);
         break;
-#ifdef CLIENT_INTERFACE
     case INTERRUPTED_CLIENT_LIB:
     case INTERRUPTED_CLIENT_GENCODE:
         /* The client should have handled this interrupt and either suppressed
@@ -1078,7 +1061,6 @@ handle_kernel_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
         ASSERT_NOT_REACHED();
         os_terminate(dcontext, TERMINATE_PROCESS);
         break;
-#endif
     default: os_terminate(dcontext, TERMINATE_PROCESS);
     }
 }
@@ -1088,7 +1070,6 @@ nmi_handler(void)
 {
 }
 
-#ifdef CLIENT_INTERFACE
 static bool
 send_interrupt_to_client(dcontext_t *dcontext, interrupt_context_t *interrupt)
 {
@@ -1101,7 +1082,6 @@ send_interrupt_to_client(dcontext_t *dcontext, interrupt_context_t *interrupt)
     res = instrument_interrupt(dcontext, &dr_interrupt);
     return res;
 }
-#endif
 
 static void
 handle_interrupt(interrupt_stack_frame_t *frame, dr_mcontext_t *mcontext,
@@ -1164,9 +1144,7 @@ handle_interrupt(interrupt_stack_frame_t *frame, dr_mcontext_t *mcontext,
         interrupt.frame.xflags |= EFLAGS_IF;
     }
 
-#ifdef CLIENT_INTERFACE
     if (send_interrupt_to_client(dcontext, &interrupt)) {
-#endif
 #ifdef DEBUG
         DOKSTATS({
             kstat_stack_t *ks = &dcontext->thread_kstats->stack_kstats;
@@ -1212,9 +1190,7 @@ handle_interrupt(interrupt_stack_frame_t *frame, dr_mcontext_t *mcontext,
             /* If this returns, then we iret to whatever was interrupted. The
              * state in mcontext and frame are restored. */
         }
-#ifdef CLIENT_INTERFACE
     }
-#endif
 
     if (local)
         SELF_PROTECT_LOCAL(dcontext, READONLY);
@@ -1233,8 +1209,7 @@ optimize_syscall_entry(dcontext_t *dcontext)
     os_thread_data_t *ostd = (os_thread_data_t *)dcontext->os_field;
     fragment_t *f;
     f = build_basic_block_fragment(dcontext, (byte *)ostd->native_state.msr_lstar,
-                                   FRAG_CANNOT_DELETE, true,
-                                   true _IF_CLIENT(false) _IF_CLIENT(NULL));
+                                   FRAG_CANNOT_DELETE, true, true, false, NULL);
     ostd->syscall_entry_frag = f;
     optimize_syscall_code(dcontext, f);
 }
@@ -2299,7 +2274,7 @@ deadlock_avoidance_unlock(mutex_t *lock, bool ownable);
 void
 mutex_wait_contended_lock(mutex_t *lock)
 {
-    IF_CLIENT_INTERFACE(dcontext_t *dcontext = get_thread_private_dcontext();)
+    dcontext_t *dcontext = get_thread_private_dcontext();
     /* FIXME: we don't actually use system calls to synchronize on Linux,
      * one day we would use futex(2) on this path (PR 295561).
      * For now we use a busy-wait lock.
@@ -2309,17 +2284,13 @@ mutex_wait_contended_lock(mutex_t *lock)
     d_r_atomic_dec_and_test(&lock->lock_requests);
 
     while (!d_r_mutex_trylock(lock)) {
-#ifdef CLIENT_INTERFACE
         if (dcontext != NULL && IS_CLIENT_THREAD(dcontext) &&
             (mutex_t *)dcontext->client_data->client_grab_mutex == lock)
             dcontext->client_data->client_thread_safe_for_synch = true;
-#endif
         thread_yield();
-#ifdef CLIENT_INTERFACE
         if (dcontext != NULL && IS_CLIENT_THREAD(dcontext) &&
             (mutex_t *)dcontext->client_data->client_grab_mutex == lock)
             dcontext->client_data->client_thread_safe_for_synch = false;
-#endif
     }
 
 #ifdef DEADLOCK_AVOIDANCE
