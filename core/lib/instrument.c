@@ -60,7 +60,7 @@
 #include "../synch.h"
 #include "../annotations.h"
 #include "../translate.h"
-#ifdef UNIX
+#if defined(UNIX) && !defined(LINUX_KERNEL)
 #    include <sys/time.h>       /* ITIMER_* */
 #    include "../unix/module.h" /* redirect_* functions */
 #endif
@@ -7742,7 +7742,7 @@ dr_prepopulate_cache(app_pc *tags, size_t tags_count)
         /* There could be duplicates if sthg was deleted and re-added during profiling */
         fragment_t coarse_f;
         fragment_t *f;
-#ifdef UNIX
+#if defined(UNIX) && !defined(LINUX_KERNEL)
         /* We silently skip DR-segment-reading addresses to help out a caller
          * who sampled and couldn't avoid self-sampling for decoding.
          */
