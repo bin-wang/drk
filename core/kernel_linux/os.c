@@ -139,7 +139,7 @@ typedef struct {
 
     int num_patches;
     cache_pc patch_pc[MAX_NUM_PATCHES];
-    byte patch_buffer[MAX_NUM_PATCHES][INTN_LENGTH];
+    byte patch_buffer[MAX_NUM_PATCHES][INT_LENGTH];
 #ifdef DEBUG
     /* Keep track of where the interrupt came from for debugging. */
     interrupted_location_t interrupted_location;
@@ -780,7 +780,7 @@ is_patch_interrupt(os_thread_data_t *ostd, interrupt_context_t *interrupt)
          * all classified as "traps" rather than "faults" (see Section 6.5 in
          * Intel's Programmer Reference Manual, volume 3A).
          */
-        if (ostd->patch_pc[i] + INTN_LENGTH == interrupt->frame.xip) {
+        if (ostd->patch_pc[i] + INT_LENGTH == interrupt->frame.xip) {
             return true;
         }
         second_patch();
@@ -1158,8 +1158,8 @@ handle_interrupt(interrupt_stack_frame_t *frame, dr_mcontext_t *mcontext,
 
     if (is_patch_interrupt(ostd, &interrupt)) {
         unpatch_fragments(dcontext, ostd);
-        interrupt.raw_frame->xip -= INTN_LENGTH;
-        interrupt.frame.xip -= INTN_LENGTH;
+        interrupt.raw_frame->xip -= INT_LENGTH;
+        interrupt.frame.xip -= INT_LENGTH;
         interrupt.raw_frame->xflags |= EFLAGS_IF;
         interrupt.frame.xflags |= EFLAGS_IF;
     }
