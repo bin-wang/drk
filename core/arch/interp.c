@@ -1647,6 +1647,7 @@ bb_process_mov_seg(dcontext_t *dcontext, build_bb_t *bb)
 }
 #endif /* UNIX && X86 */
 
+#ifndef LINUX_KERNEL
 /* Returns true to indicate that ignorable syscall processing is completed
  * with *continue_bb indicating if the bb should be continued or not.
  * When returning false, continue_bb isn't pertinent.
@@ -1657,7 +1658,7 @@ bb_process_ignorable_syscall(dcontext_t *dcontext, build_bb_t *bb, int sysnum,
 {
     STATS_INC(ignorable_syscalls);
     BBPRINT(bb, 3, "found ignorable system call 0x%04x\n", sysnum);
-#ifdef WINDOWS
+#    ifdef WINDOWS
     if (get_syscall_method() != SYSCALL_METHOD_SYSENTER) {
         DOCHECK(1, {
             if (get_syscall_method() == SYSCALL_METHOD_WOW64)
@@ -1711,7 +1712,7 @@ bb_process_ignorable_syscall(dcontext_t *dcontext, build_bb_t *bb, int sysnum,
         STATS_DEC(ignorable_syscalls);
         return false;
     }
-#elif defined(MACOS) && defined(X86)
+#    elif defined(MACOS) && defined(X86)
     if (instr_get_opcode(bb->instr) == OP_sysenter) {
         /* To continue after the sysenter we need to go to the ret ibl, as user-mode
          * sysenter wrappers put the retaddr into edx as the post-kernel continuation.
@@ -1726,12 +1727,13 @@ bb_process_ignorable_syscall(dcontext_t *dcontext, build_bb_t *bb, int sysnum,
     } else if (continue_bb != NULL)
         *continue_bb = true;
     return true;
-#else
+#    else
     if (continue_bb != NULL)
         *continue_bb = true;
     return true;
-#endif
+#    endif
 }
+#endif // LINUX_KERNEL
 
 #ifdef WINDOWS
 /* Process a syscall that is executed via shared syscall. */
@@ -1849,6 +1851,7 @@ adjust_it_instr_for_split(dcontext_t *dcontext, instr_t *it, uint pos)
 }
 #endif /* ARM */
 
+#ifndef LINUX_KERNEL
 static bool
 bb_process_non_ignorable_syscall(dcontext_t *dcontext, build_bb_t *bb, int sysnum)
 {
@@ -1859,26 +1862,26 @@ bb_process_non_ignorable_syscall(dcontext_t *dcontext, build_bb_t *bb, int sysnu
     LOG(THREAD, LOG_INTERP, 3, "ending bb at syscall & removing the interrupt itself\n");
     /* Indicate that this is a non-ignorable syscall so mangle will remove */
     /* XXX i#1551: maybe we should union int80 and svc as both are inline syscall? */
-#ifdef UNIX
+#    ifdef UNIX
     if (instr_get_opcode(bb->instr) ==
         IF_X86_ELSE(OP_int, IF_RISCV64_ELSE(OP_ecall, OP_svc))) {
-#    if defined(MACOS) && defined(X86)
+#        if defined(MACOS) && defined(X86)
         int num = instr_get_interrupt_number(bb->instr);
         if (num == 0x81 || num == 0x82) {
             bb->exit_type |= LINK_SPECIAL_EXIT;
             bb->instr->flags |= INSTR_BRANCH_SPECIAL_EXIT;
         } else {
             ASSERT(num == 0x80);
-#    endif /* MACOS && X86 */
+#        endif /* MACOS && X86 */
             bb->exit_type |= LINK_NI_SYSCALL_INT;
             bb->instr->flags |= INSTR_NI_SYSCALL_INT;
-#    if defined(MACOS) && defined(X86)
+#        if defined(MACOS) && defined(X86)
         }
-#    endif
+#        endif
     } else
-#endif
+#    endif
         bb->instr->flags |= INSTR_NI_SYSCALL;
-#ifdef ARM
+#    ifdef ARM
     /* we assume all conditional syscalls are treated as non-ignorable */
     if (instr_is_predicated(bb->instr)) {
         instr_t *it;
@@ -1894,13 +1897,14 @@ bb_process_non_ignorable_syscall(dcontext_t *dcontext, build_bb_t *bb, int sysnu
             adjust_it_instr_for_split(dcontext, it, pos);
         }
     }
-#endif
+#    endif
     /* Set instr to NULL in order to get translation of exit cti correct. */
     bb->instr = NULL;
     /* this block must be the last one in a trace */
     bb->flags |= FRAG_MUST_END_TRACE;
     return false; /* end bb now */
 }
+#endif // LINUX_KERNEL
 
 /* returns true to indicate "continue bb" and false to indicate "end bb now" */
 static inline bool
