@@ -148,8 +148,10 @@ KSTAT_DEF("kernel interrupt handling", kernel_interrupt_handling)
 KSTAT_DEF("kernel interrupt fcache enter", kernel_interrupt_fcache_enter)
 KSTAT_DEF("kernel interrupt fcache return", kernel_interrupt_fcache_return)
 KSTAT_DEF("kernel interrupt ibl", kernel_interrupt_ibl)
-KSTAT_DEF("kernel interrupt frag success page fault", kernel_interrupt_frag_success_page_fault)
-KSTAT_DEF("kernel interrupt frag success other sync", kernel_interrupt_frag_success_other_sync)
+KSTAT_DEF("kernel interrupt frag success page fault",
+          kernel_interrupt_frag_success_page_fault)
+KSTAT_DEF("kernel interrupt frag success other sync",
+          kernel_interrupt_frag_success_other_sync)
 KSTAT_DEF("kernel interrupt frag success async", kernel_interrupt_frag_success_async)
 KSTAT_DEF("kernel interrupt frag delay dispatch", kernel_interrupt_frag_delay_dispatch)
 KSTAT_DEF("kernel interrupt frag delay pc", kernel_interrupt_frag_delay_pc)
