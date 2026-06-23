@@ -98,7 +98,7 @@ typedef struct {
     interrupt_stack_frame_t frame;
     /* Keep a pointer around so we can reset eflags.IF. */
     interrupt_stack_frame_t *raw_frame;
-    dr_mcontext_t *mcontext;
+    priv_mcontext_t *mcontext;
     interrupt_vector_t vector;
     interrupted_location_t location;
 } interrupt_context_t;
@@ -117,7 +117,7 @@ typedef struct {
     /* State of the pending interrupt. */
     bool pending_interrupt;
     bool use_interrupted_mcontext;
-    dr_mcontext_t interrupted_mcontext;
+    priv_mcontext_t interrupted_mcontext;
     interrupt_vector_t interrupt_vector;
     reg_t interrupt_error_code;
     reg_t interrupt_system_xflags;
@@ -538,7 +538,7 @@ redirect_iret_to_fcache_return(dcontext_t *dcontext,
 
 /* TODO(peter): Move this to arch. */
 static void
-emulate_interrupt_arrival(dr_mcontext_t *mcontext, interrupt_vector_t vector,
+emulate_interrupt_arrival(priv_mcontext_t *mcontext, interrupt_vector_t vector,
                           byte *handler, reg_t error_code, reg_t system_xflags,
                           bool frame_if)
 {
@@ -846,7 +846,7 @@ receive_pending_interrupt(dcontext_t *dcontext)
 
 static void
 record_pending_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt,
-                         dr_mcontext_t *interrupted_mcontext, bool modify_if)
+                         priv_mcontext_t *interrupted_mcontext, bool modify_if)
 {
     os_thread_data_t *ostd = (os_thread_data_t *)dcontext->os_field;
     ostd->pending_interrupt = true;
@@ -1099,7 +1099,7 @@ send_interrupt_to_client(dcontext_t *dcontext, interrupt_context_t *interrupt)
 }
 
 static void
-handle_interrupt(interrupt_stack_frame_t *frame, dr_mcontext_t *mcontext,
+handle_interrupt(interrupt_stack_frame_t *frame, priv_mcontext_t *mcontext,
                  interrupt_vector_t vector)
 {
     dcontext_t *dcontext;
