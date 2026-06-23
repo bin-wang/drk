@@ -2518,7 +2518,10 @@ dr_exit_process(int exit_code)
     }
 #endif
     if (!is_currently_on_dstack(dcontext)
-            IF_UNIX(&&!is_currently_on_sigaltstack(dcontext))) {
+#if defined(UNIX) && !defined(LINUX_KERNEL)
+        && !is_currently_on_sigaltstack(dcontext)
+#endif
+    ) {
         /* if on app stack or sigaltstack, avoid incorrect leak assert at exit */
         SELF_UNPROTECT_DATASEC(DATASEC_RARELY_PROT);
         dr_api_exit = true;
