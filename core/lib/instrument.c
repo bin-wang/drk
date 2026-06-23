@@ -6685,9 +6685,11 @@ dr_get_mcontext_priv(dcontext_t *dcontext, dr_mcontext_t *dmc, priv_mcontext_t *
         return true;
     }
 
+#ifndef LINUX_KERNEL
     if (!is_os_cxt_ptr_null(dcontext->client_data->os_cxt)) {
         return os_context_to_mcontext(dmc, mc, dcontext->client_data->os_cxt);
     }
+#endif
 
     if (dcontext->client_data->suspended) {
         /* A thread suspended by dr_suspend_all_other_threads() has its
@@ -6802,6 +6804,7 @@ dr_set_mcontext(void *drcontext, dr_mcontext_t *context)
     if (dcontext->client_data->cur_mc != NULL) {
         return dr_mcontext_to_priv_mcontext(dcontext->client_data->cur_mc, context);
     }
+#ifndef LINUX_KERNEL
     if (!is_os_cxt_ptr_null(dcontext->client_data->os_cxt)) {
         /* It would be nice to fail for #DR_XFER_CALLBACK_RETURN but we'd need to
          * store yet more state to do so.  The pc will be ignored, and xsi
@@ -6809,6 +6812,7 @@ dr_set_mcontext(void *drcontext, dr_mcontext_t *context)
          */
         return mcontext_to_os_context(dcontext->client_data->os_cxt, context, NULL);
     }
+#endif
 
     /* copy the machine context to the dstack area created with
      * dr_prepare_for_call().  note that xmm0-5 copied there
