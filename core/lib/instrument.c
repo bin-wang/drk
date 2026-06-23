@@ -7570,7 +7570,9 @@ dr_insert_get_seg_base(void *drcontext, instrlist_t *ilist, instr_t *instr, reg_
 #ifdef X86
     CLIENT_ASSERT(reg_is_segment(seg),
                   "dr_insert_get_seg_base: seg is not a segment register");
-#    ifdef UNIX
+#    ifdef LINUX_KERNEL
+    return false;
+#    elif defined(UNIX)
 #        ifndef MACOS64
     CLIENT_ASSERT(INTERNAL_OPTION(mangle_app_seg),
                   "dr_insert_get_seg_base is supported with -mangle_app_seg only");
@@ -7609,7 +7611,7 @@ dr_insert_get_seg_base(void *drcontext, instrlist_t *ilist, instr_t *instr, reg_
             INSTR_CREATE_mov_imm(drcontext, opnd_create_reg(reg), OPND_CREATE_INTPTR(0)));
     } else
         return false;
-#    endif /* UNIX/Windows */
+#    endif /* LINUX_KERNEL/UNIX/Windows */
 #elif defined(ARM)
     /* i#1551: NYI on ARM */
     ASSERT_NOT_IMPLEMENTED(false);
