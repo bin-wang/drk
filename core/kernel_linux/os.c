@@ -199,7 +199,7 @@ os_module_area_reset(module_area_t *ma HEAPACCT(which_heap_t which))
 }
 
 generic_func_t
-get_proc_address_ex(module_handle_t lib, const char *name,
+get_proc_address_ex(module_base_t lib, const char *name,
                     bool *is_indirect_code DR_PARAM_OUT)
 {
     ASSERT_NOT_PORTED(false);
@@ -267,7 +267,7 @@ module_get_header_size(app_pc module_base)
 }
 
 bool
-module_has_text_relocs(app_pc base)
+module_has_text_relocs(app_pc base, bool at_map)
 {
     ASSERT_NOT_PORTED(false);
     return true;
@@ -1441,7 +1441,7 @@ os_get_native_syscall_entry(dcontext_t *dcontext)
 }
 
 void
-os_thread_init(dcontext_t *dcontext)
+os_thread_init(dcontext_t *dcontext, void *os_data)
 {
     os_thread_data_t *ostd = (os_thread_data_t *)heap_alloc(
         dcontext, sizeof(os_thread_data_t) HEAPACCT(ACCT_OTHER));
@@ -1458,7 +1458,7 @@ os_thread_after_arch_init(dcontext_t *dcontext)
 }
 
 void
-os_thread_exit(dcontext_t *dcontext)
+os_thread_exit(dcontext_t *dcontext, bool other_thread)
 {
     os_thread_data_t *ostd = (os_thread_data_t *)dcontext->os_field;
 
@@ -1480,7 +1480,7 @@ os_thread_under_dynamo(dcontext_t *dcontext)
 }
 
 void
-os_thread_not_under_dynamo(dcontext_t *dcontext)
+os_thread_not_under_dynamo(dcontext_t *dcontext, bool restore_sigblocked)
 {
     /* This is called when a CPU returns to user space. */
 }
@@ -1722,13 +1722,13 @@ get_num_processors()
 }
 
 shlib_handle_t
-load_shared_library(char *name)
+load_shared_library(const char *name, bool reachable)
 {
     return kernel_load_shared_library(name);
 }
 
 shlib_routine_ptr_t
-lookup_library_routine(shlib_handle_t lib, char *name)
+lookup_library_routine(shlib_handle_t lib, const char *name)
 {
     return kernel_lookup_library_routine(lib, name);
 }
@@ -1750,7 +1750,8 @@ shared_library_error(char *buf, int maxlen)
 
 bool
 shared_library_bounds(DR_PARAM_IN shlib_handle_t lib, DR_PARAM_IN byte *addr,
-                      DR_PARAM_OUT byte **start, DR_PARAM_OUT byte **end)
+                      DR_PARAM_IN const char *name, DR_PARAM_OUT byte **start,
+                      DR_PARAM_OUT byte **end)
 {
     return kernel_shared_library_bounds(lib, addr, start, end);
 }
@@ -1947,7 +1948,7 @@ os_delete_mapped_file(const char *filename)
 
 byte *
 os_map_file(file_t f, size_t *size DR_PARAM_INOUT, uint64 offs, app_pc addr, uint prot,
-            bool copy_on_write, bool image, bool fixed)
+            map_flags_t map_flags)
 {
     ASSERT_NOT_PORTED(false);
     return NULL;
@@ -2287,7 +2288,7 @@ extern void
 deadlock_avoidance_unlock(mutex_t *lock, bool ownable);
 
 void
-mutex_wait_contended_lock(mutex_t *lock)
+mutex_wait_contended_lock(mutex_t *lock, priv_mcontext_t *mc)
 {
     dcontext_t *dcontext = get_thread_private_dcontext();
     /* FIXME: we don't actually use system calls to synchronize on Linux,
@@ -2404,8 +2405,8 @@ reset_event(event_t e)
 
 /* FIXME: compare use and implementation with  man pthread_cond_wait */
 /* FIXME PR 295561: use futex */
-void
-wait_for_event(event_t e)
+bool
+wait_for_event(event_t e, int timeout_ms)
 {
 #ifdef DEBUG
     dcontext_t *dcontext = get_thread_private_dcontext();
@@ -2427,7 +2428,7 @@ wait_for_event(event_t e)
                 d_r_mutex_unlock(&e->lock);
                 LOG(THREAD, LOG_THREADS, 3,
                     "thread %d finished waiting for event " PFX "\n", get_thread_id(), e);
-                return;
+                return true;
             }
         }
         thread_yield();
