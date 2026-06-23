@@ -2818,6 +2818,10 @@ get_fcache_target(dcontext_t *dcontext)
 void
 set_fcache_target(dcontext_t *dcontext, cache_pc value)
 {
+#ifdef LINUX_KERNEL
+    /* Save the last app tag. We need this to handle interrupts in fcache_enter. */
+    dcontext->next_app_tag = dcontext->next_tag;
+#endif
     /* we used to use mcontext.pc, but that's in the writable
      * portion of the dcontext, and so for self-protection we use the
      * next_tag slot, which is protected

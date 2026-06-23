@@ -1779,6 +1779,9 @@ initialize_dynamo_context(dcontext_t *dcontext)
     dcontext->initialized = true;
     dcontext->whereami = DR_WHERE_APP;
     dcontext->next_tag = NULL;
+#ifdef LINUX_KERNEL
+    dcontext->next_app_tag = NULL;
+#endif
     dcontext->native_exec_postsyscall = NULL;
     memset(dcontext->native_retstack, 0, sizeof(dcontext->native_retstack));
     dcontext->native_retstack_cur = 0;

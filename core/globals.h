@@ -778,6 +778,11 @@ struct _dcontext_t {
      * XXX: change to a union?
      */
     app_pc next_tag;
+#ifdef LINUX_KERNEL
+    /* Holds the address of the next application instruction to execute. Unlike
+     * next_tag, this is not overwritten with a code cache address. */
+    app_pc next_app_tag;
+#endif
 
     linkstub_t *last_exit; /* last exit from cache */
     byte *dstack;          /* thread-private dynamo stack */
