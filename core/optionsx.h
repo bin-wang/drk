@@ -3471,8 +3471,8 @@ OPTION_COMMAND(
     "run dr in a light weight mode with nothing but a few hooks", STATIC, OP_PCACHE_NOP)
 
 #ifdef LINUX_KERNEL
-    OPTION_DEFAULT(bool, optimize_sys_call_ret, true,
-                   "optimize syscall and sysret to avoid dispatch")
+OPTION_DEFAULT(bool, optimize_sys_call_ret, true,
+               "optimize syscall and sysret to avoid dispatch")
 #endif
 
 #undef OPTION
