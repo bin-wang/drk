@@ -516,7 +516,7 @@ os_tls_cfree(uint offset, uint num_slots)
 
 /* TODO(peter): Move this to arch. */
 static void
-get_interrupted_context(interrupt_context_t *interrupt, dr_mcontext_t *out)
+get_interrupted_context(interrupt_context_t *interrupt, priv_mcontext_t *out)
 {
     copy_mcontext(interrupt->mcontext, out);
     out->xip = interrupt->frame.xip;
@@ -616,7 +616,7 @@ handle_user_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
         interrupt->mcontext->rsp += sizeof(interrupt->frame.error_code);
     }
     set_last_exit(dcontext, (linkstub_t *)get_user_interrupt_entry_linkstub());
-    transfer_to_dispatch(dcontext, 0 /* errno */, interrupt->mcontext);
+    transfer_to_dispatch(dcontext, interrupt->mcontext, false);
     ASSERT_NOT_REACHED();
 }
 
@@ -880,7 +880,7 @@ is_loop_opc(uint opc)
 static void
 handle_fragment_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
 {
-    dr_mcontext_t mcontext;
+    priv_mcontext_t mcontext;
     fragment_t wrapper;
     recreate_success_t res;
     bool waslinking = is_couldbelinking(dcontext);
@@ -917,7 +917,7 @@ handle_fragment_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
         dcontext->next_tag = mcontext.xip;
         set_last_exit(dcontext, (linkstub_t *)get_kernel_interrupt_entry_linkstub());
         STATS_INC(num_ndelayed_frag_intr);
-        transfer_to_dispatch(dcontext, 0, &mcontext);
+        transfer_to_dispatch(dcontext, &mcontext, false);
     } else if (res == RECREATE_DELAY_UNTIL_DISPATCH) {
         /* Switch from kernel_interrupt_handling */
         KSWITCH(kernel_interrupt_frag_delay_dispatch);
@@ -1000,7 +1000,7 @@ handle_fcache_enter_interrupt(dcontext_t *dcontext, interrupt_context_t *interru
     ASSERT(!is_dynamo_address(dcontext->next_tag));
     ASSERT(is_kernel_code(dcontext->next_tag));
     STATS_INC(num_fcache_enter_interrupts);
-    transfer_to_dispatch(dcontext, 0, get_mcontext(dcontext));
+    transfer_to_dispatch(dcontext, get_mcontext(dcontext), false);
 }
 
 static void
