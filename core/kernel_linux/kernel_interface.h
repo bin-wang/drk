@@ -68,9 +68,9 @@ is_kernel_code(void *pc);
 
 /* None of these routines are safe to use after initilization. */
 void *
-kernel_load_shared_library(char *name);
+kernel_load_shared_library(const char *name);
 void *
-kernel_lookup_library_routine(void *lib, char *name);
+kernel_lookup_library_routine(void *lib, const char *name);
 bool
 kernel_shared_library_bounds(void *lib, byte *addr, byte **start, byte **end);
 byte *

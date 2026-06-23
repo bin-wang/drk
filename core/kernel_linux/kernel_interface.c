@@ -232,7 +232,7 @@ kernel_interface_exit(void)
 }
 
 void *
-kernel_load_shared_library(char *name)
+kernel_load_shared_library(const char *name)
 {
     struct module *module;
 
@@ -248,7 +248,7 @@ kernel_load_shared_library(char *name)
 #define MAX_QUALIFIED_NAME_LEN 256
 
 void *
-kernel_lookup_library_routine(void *lib, char *name)
+kernel_lookup_library_routine(void *lib, const char *name)
 {
     struct module *module = (struct module *)lib;
     /* Build a string with the format mod_name:routine_name. */
