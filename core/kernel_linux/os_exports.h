@@ -70,6 +70,14 @@
 #    define ASM_SEG "%fs"
 #endif
 
+#define LIB_SEG_TLS DR_REG_NULL
+
+ushort
+os_get_app_tls_base_offset(reg_id_t reg);
+
+ushort
+os_get_app_tls_reg_offset(reg_id_t reg);
+
 void *
 get_tls(tls_offset_t tls_offs);
 void

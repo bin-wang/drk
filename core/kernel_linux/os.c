@@ -375,6 +375,21 @@ os_tls_offset(tls_offset_t tls_offs)
     return (tls_offset_t)(tls_local_state_offset + tls_offs);
 }
 
+ushort
+os_get_app_tls_base_offset(reg_id_t reg)
+{
+    ASSERT_NOT_REACHED();
+    return 0;
+}
+
+ushort
+os_get_app_tls_reg_offset(reg_id_t reg)
+{
+    ASSERT_NOT_REACHED();
+    return 0;
+}
+
+
 char *
 get_application_pid()
 {
