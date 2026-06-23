@@ -2542,7 +2542,7 @@ dr_create_memory_dump(dr_memory_dump_spec_t *spec)
     if (TEST(DR_MEMORY_DUMP_LDMP, spec->flags))
         return os_dump_core_live(spec->label, spec->ldmp_path, spec->ldmp_path_size);
 /* XXX i#2154: Add Android AArch64 support. */
-#elif defined(LINUX) && \
+#elif defined(LINUX) && !defined(LINUX_KERNEL) && \
     ((defined(X64) && defined(X86)) || (defined(AARCH64) && !defined(ANDROID64)))
     if (TEST(DR_MEMORY_DUMP_ELF, spec->flags)) {
         return os_dump_core_live(get_thread_private_dcontext(),
