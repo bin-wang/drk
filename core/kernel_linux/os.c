@@ -638,7 +638,7 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
         ASSERT(dcontext->whereami != WHERE_USERMODE);
     }
 
-    if (dcontext->whereami == WHERE_FCACHE) {
+    if (dcontext->whereami == DR_WHERE_FCACHE) {
         if (in_generated_routine(dcontext, pc)) {
             return INTERRUPTED_GENCODE;
         } else if (!is_on_dstack(dcontext, (byte *)frame->xsp)) {
@@ -665,9 +665,9 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
              *
              * Note that the following is impossible
              *  - in some random kernel code that we call (e.g., memcpy) after
-             *    whereami = WHERE_FCACHE was set in the dispatcher
+             *    whereami = DR_WHERE_FCACHE was set in the dispatcher
              * because we don't do anything that can fault after we set
-             * whereami = WHERE_FCACHE
+             * whereami = DR_WHERE_FCACHE
              */
             if (is_in_dynamo_dll(pc)) {
                 return INTERRUPTED_DYNAMORIO;
@@ -692,10 +692,10 @@ get_interrupted_location(dcontext_t *dcontext, interrupt_stack_frame_t *frame)
             }
         }
     } else {
-        /* Whenever whereami != WHERE_FCACHE, we should be on the dstack. */
+        /* Whenever whereami != DR_WHERE_FCACHE, we should be on the dstack. */
         ASSERT(is_on_dstack(dcontext, (byte *)frame->xsp));
         if (in_generated_routine(dcontext, pc)) {
-            /* We run some generated code when whereami != WHERE_FCACHE and not
+            /* We run some generated code when whereami != DR_WHERE_FCACHE and not
              * on the dstack (namely the kernel entry points), but these
              * routines should not generate exceptions and they run with
              * interrupts disabled.
