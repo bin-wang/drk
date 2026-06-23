@@ -1910,7 +1910,7 @@ bb_process_syscall(dcontext_t *dcontext, build_bb_t *bb)
     ASSERT_MESSAGE(CHKLVL_ASSERTS, "There should not be system calls in the kernel.",
                    false);
     return true;
-#endif
+#else
     int sysnum;
     /* PR 307284: for simplicity do syscall/int processing post-client.
      * We give up on inlining but we can still use ignorable/shared syscalls
@@ -1918,12 +1918,12 @@ bb_process_syscall(dcontext_t *dcontext, build_bb_t *bb)
      */
     if (bb->pass_to_client && !bb->post_client)
         return false;
-#ifdef DGC_DIAGNOSTICS
+#    ifdef DGC_DIAGNOSTICS
     if (TEST(FRAG_DYNGEN, bb->flags) && !is_dyngen_vsyscall(bb->instr_start)) {
         LOG(THREAD, LOG_INTERP, 1, "WARNING: syscall @ " PFX " in dyngen code!\n",
             bb->instr_start);
     }
-#endif
+#    endif
     BBPRINT(bb, 4, "interp: syscall @ " PFX "\n", bb->instr_start);
     check_syscall_method(dcontext, bb->instr);
     bb->flags |= FRAG_HAS_SYSCALL;
@@ -1931,7 +1931,7 @@ bb_process_syscall(dcontext_t *dcontext, build_bb_t *bb)
      * we let bb keep going, else we end bb and flag it
      */
     sysnum = find_syscall_num(dcontext, bb->ilist, bb->instr);
-#ifdef VMX86_SERVER
+#    ifdef VMX86_SERVER
     DOSTATS({
         if (instr_get_opcode(bb->instr) == OP_int &&
             instr_get_interrupt_number(bb->instr) == VMKUW_SYSCALL_GATEWAY) {
@@ -1939,14 +1939,14 @@ bb_process_syscall(dcontext_t *dcontext, build_bb_t *bb)
             LOG(THREAD, LOG_SYSCALLS, 2, "vmkuw system call site: #=%d\n", sysnum);
         }
     });
-#endif
+#    endif
     BBPRINT(bb, 3, "syscall # is %d\n", sysnum);
     if (sysnum != -1 && instrument_filter_syscall(dcontext, sysnum)) {
         BBPRINT(bb, 3, "client asking to intercept => pretending syscall # %d is -1\n",
                 sysnum);
         sysnum = -1;
     }
-#ifdef ARM
+#    ifdef ARM
     if (sysnum != -1 && instr_is_predicated(bb->instr)) {
         BBPRINT(bb, 3,
                 "conditional system calls cannot be inlined => "
@@ -1954,17 +1954,17 @@ bb_process_syscall(dcontext_t *dcontext, build_bb_t *bb)
                 sysnum);
         sysnum = -1;
     }
-#endif
+#    endif
     if (sysnum != -1 && DYNAMO_OPTION(ignore_syscalls) &&
         ignorable_system_call(sysnum, bb->instr, NULL)
-#ifdef X86
+#    ifdef X86
         /* PR 288101: On Linux we do not yet support inlined sysenter instrs as we
          * do not have in-cache support for the post-sysenter continuation: we rely
          * for now on very simple sysenter handling where d_r_dispatch uses asynch_target
          * to know where to go next.
          */
         IF_LINUX(&&instr_get_opcode(bb->instr) != OP_sysenter)
-#endif /* X86 */
+#    endif /* X86 */
     ) {
 
         bool continue_bb;
@@ -1975,16 +1975,17 @@ bb_process_syscall(dcontext_t *dcontext, build_bb_t *bb)
             return continue_bb;
         }
     }
-#ifdef WINDOWS
+#    ifdef WINDOWS
     if (sysnum != -1 && DYNAMO_OPTION(shared_syscalls) &&
         optimizable_system_call(sysnum)) {
         bb_process_shared_syscall(dcontext, bb, sysnum);
         return false;
     }
-#endif
+#    endif
 
     /* Fall thru and handle as a non-ignorable syscall. */
     return bb_process_non_ignorable_syscall(dcontext, bb, sysnum);
+#endif
 }
 
 /* Case 3922: for wow64 we treat "call *fs:0xc0" as a system call.
