@@ -389,7 +389,6 @@ os_get_app_tls_reg_offset(reg_id_t reg)
     return 0;
 }
 
-
 char *
 get_application_pid()
 {
