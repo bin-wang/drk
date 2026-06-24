@@ -897,7 +897,7 @@ handle_fragment_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
     KSTART(recreate_app_state_frag_intr);
     if (!waslinking)
         enter_couldbelinking(dcontext, NULL, false);
-    res = recreate_app_state(dcontext, &mcontext, true);
+    res = recreate_app_state(dcontext, &mcontext, true, NULL);
     if (!waslinking)
         enter_nolinking(dcontext, NULL, false);
     KSTOP(recreate_app_state_frag_intr);
