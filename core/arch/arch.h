@@ -957,6 +957,7 @@ typedef struct ibl_code_t {
  */
 typedef struct _generated_code_t {
     byte *fcache_enter;
+    byte *fcache_enter_end;
     byte *fcache_return;
     byte *fcache_return_end;
 #ifdef WINDOWS_PC_SAMPLE

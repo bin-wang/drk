@@ -1046,9 +1046,9 @@ handle_kernel_interrupt(dcontext_t *dcontext, interrupt_context_t *interrupt)
         ASSERT(!vector_is_synchronous(interrupt->vector));
         if (in_indirect_branch_lookup_code(dcontext, interrupt->frame.xip)) {
             handle_ibl_interrupt(dcontext, interrupt);
-        } else if (in_fcache_enter_code(dcontext, interrupt->frame.xip)) {
+        } else if (in_fcache_enter(dcontext, interrupt->frame.xip)) {
             handle_fcache_enter_interrupt(dcontext, interrupt);
-        } else if (in_fcache_return_code(dcontext, interrupt->frame.xip)) {
+        } else if (in_fcache_return(dcontext, interrupt->frame.xip)) {
             handle_fcache_return_interrupt(dcontext, interrupt);
         } else {
             /* We don't expect interrupts for any other gencode. */

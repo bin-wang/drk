@@ -449,6 +449,8 @@ is_indirect_branch_lookup_routine(dcontext_t *dcontext, cache_pc pc);
 bool
 in_generated_routine(dcontext_t *dcontext, cache_pc pc);
 bool
+in_fcache_enter(dcontext_t *dcontext, cache_pc pc);
+bool
 in_fcache_return(dcontext_t *dcontext, cache_pc pc);
 bool
 in_clean_call_save(dcontext_t *dcontext, cache_pc pc);
