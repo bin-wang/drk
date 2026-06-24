@@ -422,6 +422,10 @@ get_time(void);
 void
 d_r_arch_init(void);
 void d_r_arch_exit(IF_WINDOWS_ELSE_NP(bool detach_stacked_callbacks, void));
+#ifdef LINUX_KERNEL
+void
+optimize_syscall_code(dcontext_t *dcontext, fragment_t *f);
+#endif
 void
 arch_thread_init(dcontext_t *dcontext);
 void

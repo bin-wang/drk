@@ -1180,6 +1180,19 @@ emit_syscall_routines(dcontext_t *dcontext, generated_code_t *code, byte *pc,
     return pc;
 }
 
+#ifdef LINUX_KERNEL
+void
+optimize_syscall_code(dcontext_t *dcontext, fragment_t *f)
+{
+    generated_code_t *code = THREAD_GENCODE(dcontext);
+    byte *pc = code->syscall_entry;
+    /* Assert pc points to swapgs. */
+    ASSERT(pc[0] == 0x0f && pc[1] == 0x01 && pc[2] == 0xf8);
+    pc += 3;
+    insert_relative_jump(pc, f->start_pc, false);
+}
+#endif
+
 void
 arch_thread_init(dcontext_t *dcontext)
 {
