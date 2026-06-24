@@ -93,6 +93,8 @@ typedef enum {
     RECREATE_FAILURE,
     RECREATE_SUCCESS_PC,
     RECREATE_SUCCESS_STATE,
+    RECREATE_DELAY_UNTIL_DISPATCH,
+    RECREATE_DELAY_UNTIL_PC,
 } recreate_success_t;
 
 recreate_success_t
