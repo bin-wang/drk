@@ -2438,10 +2438,12 @@ wait_for_event(event_t e, int timeout_ms)
 /* End of code copied from the original Linux port. */
 
 uint
-os_random_seed()
+os_random_seed(void)
 {
     /* Return the low 32 bits of the cycle count. */
-    return (uint)get_cycle_count();
+    uint64 cycles = 0;
+    RDTSC_LL(cycles);
+    return (uint)cycles;
 }
 
 void
