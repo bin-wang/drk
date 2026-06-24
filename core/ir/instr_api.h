@@ -2585,10 +2585,13 @@ enum {
     EFLAGS_AF = 0x00000010, /**< The bit in the eflags register of AF (Aux Carry Flag). */
     EFLAGS_ZF = 0x00000040, /**< The bit in the eflags register of ZF (Zero Flag). */
     EFLAGS_SF = 0x00000080, /**< The bit in the eflags register of SF (Sign Flag). */
+    EFLAGS_IF = 0x00000200, /**< The bit in the eflags register of IF (Interrupt Enable Flag). */
     EFLAGS_DF = 0x00000400, /**< The bit in the eflags register of DF (Direction Flag). */
     EFLAGS_OF = 0x00000800, /**< The bit in the eflags register of OF (Overflow Flag). */
     /** The bits in the eflags register of CF, PF, AF, ZF, SF, OF. */
     EFLAGS_ARITH = EFLAGS_CF | EFLAGS_PF | EFLAGS_AF | EFLAGS_ZF | EFLAGS_SF | EFLAGS_OF,
+    EFLAGS_NON_SYSTEM = EFLAGS_ARITH | EFLAGS_DF,
+    EFLAGS_SYSTEM = ~EFLAGS_NON_SYSTEM,
 };
 
 #elif defined(AARCHXX)
