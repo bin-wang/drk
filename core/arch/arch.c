@@ -1149,6 +1149,25 @@ emit_syscall_routines(dcontext_t *dcontext, generated_code_t *code, byte *pc,
     code->do_syscall = pc;
     pc = emit_do_syscall(dcontext, code, pc, code->fcache_return, thread_shared, 0,
                          &code->do_syscall_offs);
+#elif defined(LINUX_KERNEL)
+    ASSERT(thread_shared);
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    code->syscall_entry = pc;
+    pc = emit_syscall_entry(dcontext, code->fcache_return,
+                            os_get_native_syscall_entry(dcontext), pc);
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    code->common_vector_entry = pc;
+    pc = emit_common_vector_entry(dcontext, os_get_tls_base(dcontext),
+                                  os_get_interrupt_handler(0), pc);
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    for (int vector = VECTOR_START; vector < VECTOR_END; vector++) {
+        /* Pack as many as we can on a cache line. */
+        if (CROSSES_ALIGNMENT(pc, VECTOR_ENTRY_CODE_SIZE, proc_get_cache_line_size())) {
+            pc = check_size_and_cache_line(isa_mode, code, pc);
+        }
+        code->vector_entry[vector - VECTOR_START] = pc;
+        pc = emit_vector_entry(dcontext, code->common_vector_entry, vector, pc);
+    }
 #else /* UNIX */
     pc = check_size_and_cache_line(isa_mode, code, pc);
     code->do_syscall = pc;
@@ -2017,6 +2036,46 @@ get_do_vmkuw_syscall_entry(dcontext_t *dcontext)
     return (cache_pc)code->do_vmkuw_syscall;
 }
 #    endif
+#endif
+
+#ifdef LINUX_KERNEL
+cache_pc
+get_syscall_entry(dcontext_t *dcontext) {
+    generated_code_t *code = THREAD_GENCODE(dcontext);
+    return (cache_pc)code->syscall_entry;
+}
+
+cache_pc
+get_vector_entry(dcontext_t *dcontext, interrupt_vector_t vector) {
+    generated_code_t *code = THREAD_GENCODE(dcontext);
+    ASSERT(vector >= VECTOR_START && vector < VECTOR_END);
+    return (cache_pc)code->vector_entry[vector - VECTOR_START];
+}
+
+bool
+vector_has_error_code(interrupt_vector_t vector)
+{
+    ASSERT(vector >= VECTOR_START && vector < VECTOR_END);
+    switch (vector) {
+    case VECTOR_DOUBLE_FAULT:
+    case VECTOR_INVALID_TSS:
+    case VECTOR_SEGMENT_NOT_PRESENT:
+    case VECTOR_STACK_FAULT:
+    case VECTOR_GENERAL_PROTECTION:
+    case VECTOR_PAGE_FAULT:
+    case VECTOR_ALIGNMENT_CHECK:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool
+vector_is_synchronous(interrupt_vector_t vector)
+{
+    ASSERT(vector >= VECTOR_START && vector < VECTOR_END);
+    return vector >= VECTOR_EXCEPTION_START && vector < VECTOR_EXCEPTION_END;
+}
 #endif
 
 cache_pc

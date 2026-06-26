@@ -3143,6 +3143,374 @@ fill_with_nops(dr_isa_mode_t isa_mode, byte *addr, size_t size)
     return true;
 }
 
+#ifdef LINUX_KERNEL
+/*
+    # It's important to not use the native stack in this routine. x86 does not
+    # automatically switch stacks on system calls. So, if we pushed things here,
+    # then we would overwrite anything on the user's stack past %rsp.
+    swapgs
+    mov %xdi, %gs:DCONTEXT_BASE_SPILL_SLOT
+    mov %gs:TLS_DCONTEXT_SLOT, %xdi
+    mov %xax, %gs:TLS_XAX_SLOT
+    # dcontext->next_tag = target
+    mov target, %xax
+    mov %xax, NEXT_TAG_OFFSET(%xdi)
+    # xax = get_syscall_entry_linkstub(). fcache_return sets
+    # dcontext->last_exit = xax.
+    mov get_syscall_entry_linkstub(), %xax
+    # restore %xdi
+    mov %gs:DCONTEXT_BASE_SPILL_SLOT, %xdi
+    jmp fcache_return
+    jmp unexpected_return
+ */
+byte *
+emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target, cache_pc pc) {
+    instr_t *swapgs = instr_create(dcontext);
+
+    /* TODO i#31: If Kernel Indirect Branch Tracking (IBT) is enabled, the first instruction
+     * at target (entry_SYSCALL_64) is endbr64 (0xf3 0x0f 0x1e 0xfa). Skip it
+     * since endbr64 is not yet implemented in DynamoRIO's opcode tables.
+     */
+    if (target[0] == 0xf3 && target[1] == 0x0f && target[2] == 0x1e && target[3] == 0xfa) {
+        target += 4;
+    }
+
+    decode(dcontext, target, swapgs);
+    ASSERT(instr_get_opcode(swapgs) == OP_swapgs);
+
+    instrlist_t *ilist = instrlist_create(dcontext);
+    APP(ilist, swapgs);
+     /* Save XAX and XDI. Get dcontext into XDI. */
+    append_shared_get_dcontext(dcontext, ilist, true /* save_xdi */);
+    APP(ilist, SAVE_TO_TLS(dcontext, REG_XAX, TLS_XAX_SLOT));
+    /* dcontext->next_tag = target */
+    APP(ilist,
+        INSTR_CREATE_mov_imm(dcontext, opnd_create_reg(REG_XAX),
+                             OPND_CREATE_INTPTR(target)));
+    APP(ilist, SAVE_TO_DC_VIA_REG(false, dcontext, REG_XDI, REG_XAX, NEXT_TAG_OFFSET));
+    /* XAX = get_syscall_entry_linkstub() (fcache_return sets
+     * dcontext->last_exit = XAX) */
+    APP(ilist,
+        INSTR_CREATE_mov_imm(dcontext, opnd_create_reg(REG_XAX),
+                             OPND_CREATE_INTPTR(get_syscall_entry_linkstub())));
+    /* Restore XDI. Don't need to restore XAX because fcache_return does that
+     * for us. */
+    append_shared_restore_dcontext_reg(dcontext, ilist);
+    /* Do fcache_return. */
+    APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc(fcache_return)));
+    APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc((app_pc)unexpected_return)));
+    pc = instrlist_encode(dcontext, ilist, pc, false);
+    instrlist_clear_and_destroy(dcontext, ilist);
+    return pc;
+}
+
+/*  Pushes mcontext onto the stack with pc = 0 and xmm registers with garbage
+    values. Clobbers xax.
+
+        # Push an mcontext onto the stack. For now, we push 0 in place of %pc to
+        # indicate an invalid pc. The dispatcher will have to load the native
+        # entry point from the OS module.
+        push 0
+        pushf
+        lea [%rsp - XMM_SLOTS_SIZE], %rsp
+        push %r15
+        ...
+        push %r8
+        push %xax
+        push %xcx
+        push %xdx
+        push %xbx
+        push %xsp
+        push %xbp
+        push %xsi
+        push %xdi
+        # Save the correct %xsp by offsetting the pushed mcontext and anything
+        # else that was pushed on the stack (i.e., extra_stack bytes).
+        #   mcontext.xsp = %xsp + sizeof(dr_mcontext_t) + extra_stack
+        lea [%xsp + sizeof(dr_mcontext_t) + sizeof(reg_t)], %xax
+        mov %xax, [%xsp + offsetof(dr_mcontext_t, xsp)]
+*/
+
+static void
+append_push_mcontext(dcontext_t *dcontext, int extra_stack, instrlist_t *ilist)
+{
+    int simd_slots_size =
+        MCXT_TOTAL_SIMD_SLOTS_SIZE + MCXT_TOTAL_OPMASK_SLOTS_SIZE + PRE_XMM_PADDING;
+    /* push %pc - use 0 to indicate that it's invalid */
+    APP(ilist, INSTR_CREATE_push_imm(dcontext, OPND_CREATE_INT32(0)));
+    APP(ilist, INSTR_CREATE_RAW_pushf(dcontext));
+    ASSERT(!preserve_xmm_caller_saved());
+    APP(ilist, INSTR_CREATE_lea(
+                   dcontext, opnd_create_reg(REG_XSP),
+                   opnd_create_base_disp(REG_XSP, REG_NULL, 0, -simd_slots_size, OPSZ_lea)));
+#ifdef X64
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R15)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R14)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R13)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R12)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R11)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R10)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R9)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R8)));
+#endif
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XAX)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XCX)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XDX)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XBX)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XSP)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XBP)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XSI)));
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XDI)));
+    /* We pushed the wrong value for rsp. Fix that. */
+    APP(ilist, INSTR_CREATE_lea(
+                   dcontext, opnd_create_reg(REG_XAX),
+                   opnd_create_base_disp(REG_XSP, REG_NULL, 0,
+                                         sizeof(priv_mcontext_t) + extra_stack, OPSZ_lea)));
+    APP(ilist, INSTR_CREATE_mov_st(
+                   dcontext,
+                   opnd_create_base_disp(REG_XSP, REG_NULL, 0,
+                                         offsetof(priv_mcontext_t, xsp), OPSZ_PTR),
+                   opnd_create_reg(REG_XAX)));
+}
+
+/*
+    Expects an interrupt stack frame with the vector number and error pushed
+    onto it.  The stack is created like this where rsp = mcontext->rsp = native
+    rsp at the beginning of the interrupt handler.
+
+        ss
+        xsp
+        xflags
+        cs
+        xip
+        error_code      rsp
+        vector          rsp - 8
+        mcontext->pc    rsp - 16
+        ... the rest of mcontext
+
+        <append_push_mcontext>
+
+        # Restore the Kernel's GS base if necessary.
+        mov $MSR_GS_BASE, %rcx
+        rdmsr
+        shl $32, %rdx
+        or %rax, %rdx
+        mov $tls_base, %rcx
+        cmp %rcx, %rdx
+        jeq no_swapgs:
+        swapgs
+        no_swapgs:
+
+        # Save handler arguments into registers.
+        lea [%rsp + sizeof(dr_mcontext_t)], %rax
+        mov %rsp, %rbx
+        mov [%rsp + sizeof(dr_mcontext_t) + sizeof(reg_t)], %rcx
+
+        old_rsp = rsp
+        if (!on_dstack(rsp)) {
+          swap_stacks()
+        }
+        push(old_rsp)
+        handle_interrupt()
+        pop(rsp), so  rsp = old_rsp
+
+        # Swap stacks if we aren't already on the dstack.
+        mov %rsp, %r8
+        # if rsp > dcontext->dstack, then goto swap_stacks
+        mov dcontext->dstack, %rdx
+        cmp %rdx, %rsp
+        jg swap_stacks
+        # if rsp < (smallest addr in dstack),
+        # then goto swapped_stacks
+        mov dcontext->dstack - DYNAMORIO_STACK_SIZE, %rdx
+        cmp %rdx, %rsp
+        jg swapped_stacks
+      swap_stacks:
+        mov dcontext->dstack, %rsp
+      swapped_stacks:
+        push %r8
+
+        # Call the handler.
+        handler(isf=%rax, mcontext=%rbx, vector=%rcx)
+
+        # Restore native stack pointer.
+        pop %rsp
+
+        # pop off mcontext
+        pop %xdi
+        pop %xsi
+        pop %xbp
+        pop %xsp
+        pop %xbx
+        pop %xdx
+        pop %xcx
+        pop %xax
+        pop %r8
+        ...
+        pop %r15
+        # Pop off unused XMM registers and dead xflags, xip, vector, and the
+        # error code.
+        lea [%rsp + simd_slots_size + sizeof(reg_t) * 4], %rsp
+
+        iret
+*/
+byte *
+emit_common_vector_entry(dcontext_t *dcontext, byte *tls_base,
+                         interrupt_handler_t handler, cache_pc pc)
+{
+    instrlist_t *ilist = instrlist_create(dcontext);
+    instr_t *no_swapgs = INSTR_CREATE_label(dcontext);
+    instr_t *swap_stacks = INSTR_CREATE_label(dcontext);
+    instr_t *swapped_stacks = INSTR_CREATE_label(dcontext);
+    int simd_slots_size =
+        MCXT_TOTAL_SIMD_SLOTS_SIZE + MCXT_TOTAL_OPMASK_SLOTS_SIZE + PRE_XMM_PADDING;
+    /* After we push mcontext, the stack contains
+     *   mcontext
+     *   vector
+     *   interrupt stack frame (isf)
+     * if the isf does not have an error code, then we point the first byte of
+     * isf (i.e., the error code) to vector.
+     */
+    int vector_offset = sizeof(priv_mcontext_t);
+    int isf_offset = vector_offset + sizeof(reg_t);
+
+    append_push_mcontext(dcontext, sizeof(reg_t), ilist);
+
+    /* Check if TLS is setup. Perform a swapgs if necessary.
+     * TODO(peter): We'll make this much more efficient when we implement FS
+     * stealing. In particular, we'll know which instruction addresses can fault
+     * with the native FS value. Knowing that, we won't have to check the MSR.
+     */
+    APP(ilist,
+        INSTR_CREATE_mov_imm(dcontext, opnd_create_reg(REG_XCX),
+                             OPND_CREATE_INT64(MSR_GS_BASE)));
+    APP(ilist, INSTR_CREATE_rdmsr(dcontext));
+    APP(ilist,
+        INSTR_CREATE_shl(dcontext, opnd_create_reg(REG_XDX), OPND_CREATE_INT8(32)));
+    APP(ilist,
+        INSTR_CREATE_or(dcontext, opnd_create_reg(REG_XDX), opnd_create_reg(REG_XAX)));
+    APP(ilist,
+        INSTR_CREATE_mov_imm(dcontext, opnd_create_reg(REG_XCX),
+                             OPND_CREATE_INT64(tls_base)));
+    APP(ilist,
+        INSTR_CREATE_cmp(dcontext, opnd_create_reg(REG_XCX), opnd_create_reg(REG_XDX)));
+    APP(ilist, INSTR_CREATE_jcc(dcontext, OP_je, opnd_create_instr(no_swapgs)));
+    APP(ilist, INSTR_CREATE_swapgs(dcontext));
+    APP(ilist, no_swapgs);
+
+    /* Set rax = isf, rbx = mcontext, and rcx = vector then call
+     * handler(isf, mcontext, vector).
+     */
+    APP(ilist,
+        INSTR_CREATE_lea(
+            dcontext, opnd_create_reg(REG_RAX),
+            opnd_create_base_disp(REG_XSP, REG_NULL, 0, isf_offset, OPSZ_lea)));
+    APP(ilist,
+        INSTR_CREATE_mov_ld(dcontext, opnd_create_reg(REG_RBX),
+                            opnd_create_reg(REG_XSP)));
+    APP(ilist,
+        INSTR_CREATE_mov_ld(
+            dcontext, opnd_create_reg(REG_RCX),
+            opnd_create_base_disp(REG_XSP, REG_NULL, 0, vector_offset, OPSZ_PTR)));
+
+    /* Use r8 to backup rsp for after the handler. */
+    APP(ilist,
+        INSTR_CREATE_mov_st(dcontext, opnd_create_reg(REG_R8), opnd_create_reg(REG_RSP)));
+    /* rdx = dcontext->dstack */
+    /* TODO(peter): We could probably perform this check with an immediate in
+     * cmp as long as the dstack address can be represented with a 32-bit sign
+     * extended value. */
+    APP(ilist,
+        INSTR_CREATE_mov_imm(
+            dcontext, opnd_create_reg(REG_RDX),
+            opnd_create_immed_int((ptr_int_t)dcontext->dstack, OPSZ_PTR)));
+    /* TODO(peter): Kernel stacks are normally at lower addresses than the start
+     * of the dstack (i.e., this branch normally falls through). We could
+     * optimize this code by having the common check first
+     * (if rsp <= dstack - DYNAMORIO_STACK_SIZE).
+     */
+    APP(ilist,
+        INSTR_CREATE_cmp(dcontext, opnd_create_reg(REG_RSP), opnd_create_reg(REG_RDX)));
+    APP(ilist, INSTR_CREATE_jcc(dcontext, OP_jg, opnd_create_instr(swap_stacks)));
+    APP(ilist,
+        INSTR_CREATE_mov_imm(
+            dcontext, opnd_create_reg(REG_RDX),
+            opnd_create_immed_int((ptr_int_t)(dcontext->dstack - DYNAMORIO_STACK_SIZE),
+                                  OPSZ_PTR)));
+    APP(ilist,
+        INSTR_CREATE_cmp(dcontext, opnd_create_reg(REG_RSP), opnd_create_reg(REG_RDX)));
+    APP(ilist, INSTR_CREATE_jcc(dcontext, OP_jg, opnd_create_instr(swapped_stacks)));
+    APP(ilist, swap_stacks);
+    APP(ilist,
+        INSTR_CREATE_mov_imm(
+            dcontext, opnd_create_reg(REG_RSP),
+            opnd_create_immed_int((ptr_int_t)dcontext->dstack, OPSZ_PTR)));
+    APP(ilist, swapped_stacks);
+    /* Push the old stack pointer value. */
+    APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R8)));
+
+    dr_insert_call(dcontext, ilist, NULL /*append*/, handler, 3, opnd_create_reg(REG_RAX),
+                   opnd_create_reg(REG_RBX), opnd_create_reg(REG_RCX));
+
+    /* Restore the old stack pointer. Note that we could use callee-saved R12
+     * instead of R8 and avoid the push/pop. I'm using push/pop just in case ;-)
+     */
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RSP)));
+
+    /* Restore the registers stored in mcontext. */
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RDI)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RSI)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RBP)));
+    /* pop RSP into dead RBX */
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RBX)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RBX)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RDX)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RCX)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_RAX)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R8)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R9)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R10)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R11)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R12)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R13)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R14)));
+    APP(ilist, INSTR_CREATE_pop(dcontext, opnd_create_reg(REG_R15)));
+    /* Fake pop xmm (which we don't use), xflags (which are dead), xip (which is
+     * dead), the vector, and the error code. */
+    APP(ilist,
+        INSTR_CREATE_lea(dcontext, opnd_create_reg(REG_XSP),
+                         opnd_create_base_disp(REG_XSP, REG_NULL, 0,
+                                               simd_slots_size + 4 * sizeof(reg_t),
+                                               OPSZ_lea)));
+
+    APP(ilist, INSTR_CREATE_iret(dcontext));
+
+    pc = instrlist_encode(dcontext, ilist, pc, true);
+    instrlist_clear_and_destroy(dcontext, ilist);
+    return pc;
+}
+
+/*
+    push $vector
+    jmp common_vector_entry_pc
+*/
+byte *
+emit_vector_entry(dcontext_t *dcontext, byte *common_vector_entry_pc,
+                  interrupt_vector_t vector, byte *pc) {
+    instrlist_t* ilist = instrlist_create(dcontext);
+    if (!vector_has_error_code(vector)) {
+        APP(ilist, INSTR_CREATE_push_imm(dcontext,
+                                         OPND_CREATE_INT32(MAGIC_FAKE_ERROR)));
+    }
+    APP(ilist, INSTR_CREATE_push_imm(dcontext, OPND_CREATE_INT32(vector)));
+    APP(ilist, INSTR_CREATE_jmp(dcontext,
+                                opnd_create_pc(common_vector_entry_pc)));
+    pc = instrlist_encode(dcontext, ilist, pc, false);
+    instrlist_clear_and_destroy(dcontext, ilist);
+    return pc;
+}
+#endif /* LINUX_KERNEL */
+
 /* If code_buf points to a jmp rel32 returns true and returns the target of
  * the jmp in jmp_target as if was located at app_loc. */
 bool

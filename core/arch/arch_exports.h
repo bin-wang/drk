@@ -1928,10 +1928,30 @@ typedef struct {
     reg_t ss;
 } interrupt_stack_frame_t;
 
+/* Returns true if the hardware normally pushes an error code on this vector's
+ * interrupt stack frame.
+ */
+bool
+vector_has_error_code(interrupt_vector_t vector);
+
+/* Returns true if the interrupt vector corresponds to a synchronous CPU exception. */
+bool
+vector_is_synchronous(interrupt_vector_t vector);
+
 #    define INTERRUPT_STACK_FRAME_ALIGNMENT 0x10
 
-typedef void (*interrupt_handler_t)(interrupt_stack_frame_t *, dr_mcontext_t *,
+typedef void (*interrupt_handler_t)(interrupt_stack_frame_t *, priv_mcontext_t *,
                                     interrupt_vector_t);
+
+/* Returns the gencode for syscall entry. */
+cache_pc
+get_syscall_entry(dcontext_t *dcontext);
+/* Returns the gencode for vector entry. */
+cache_pc
+get_vector_entry(dcontext_t *dcontext, interrupt_vector_t vector);
+
+bool
+vector_is_synchronous(interrupt_vector_t vector);
 #endif /* LINUX_KERNEL */
 
 #endif /* _ARCH_EXPORTS_H_ */

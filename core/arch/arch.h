@@ -1048,6 +1048,12 @@ typedef struct _generated_code_t {
     byte *clean_call_restore;
     byte *clean_call_restore_end;
 
+#ifdef LINUX_KERNEL
+    byte *syscall_entry;
+    byte *common_vector_entry;
+    byte *vector_entry[VECTOR_END - VECTOR_START];
+#endif
+
     bool thread_shared;
     bool writable;
 #if defined(X86) && defined(X64)
@@ -1265,6 +1271,16 @@ byte *
 emit_do_syscall(dcontext_t *dcontext, generated_code_t *code, byte *pc,
                 byte *fcache_return_pc, bool thread_shared, int interrupt,
                 uint *syscall_offs /*OUT*/);
+
+#ifdef LINUX_KERNEL
+#    define VECTOR_ENTRY_CODE_SIZE (2 * PUSH_IMM32_LENGTH + JMP_LONG_LENGTH)
+byte *
+emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target, cache_pc pc);
+byte *
+emit_common_vector_entry(dcontext_t *dcontext, byte *tls_base, interrupt_handler_t handler, cache_pc pc);
+byte *
+emit_vector_entry(dcontext_t *dcontext, byte *common_vector_entry_pc, interrupt_vector_t vector, cache_pc pc);
+#endif
 
 #ifdef AARCH64
 /* Generate move (immediate) of a 64-bit value using at most 4 instructions.
