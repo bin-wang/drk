@@ -517,10 +517,9 @@ insert_inlined_ibl(dcontext_t *dcontext, fragment_t *f, linkstub_t *l, byte *pc,
     } else {
         insert_relative_target(start_pc + ibl_code->inline_linkedjmp_offs,
                                linked_exit_target, NOT_HOT_PATCHABLE);
-        insert_relative_target(
-            start_pc + ibl_code->inline_unlink_offs +
-                1 /* skip jmp opcode: see emit_inline_ibl_stub XXX */,
-            unlinked_exit_target, NOT_HOT_PATCHABLE);
+        /* Skip 1-byte jmp opcode: see emit_inline_ibl_stub XXX. */
+        byte *unlink_disp = start_pc + ibl_code->inline_unlink_offs + 1;
+        insert_relative_target(unlink_disp, unlinked_exit_target, NOT_HOT_PATCHABLE);
     }
 
     return start_pc + ibl_code->inline_stub_length;
@@ -3164,14 +3163,17 @@ fill_with_nops(dr_isa_mode_t isa_mode, byte *addr, size_t size)
     jmp unexpected_return
  */
 byte *
-emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target, cache_pc pc) {
+emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target,
+                   cache_pc pc)
+{
     instr_t *swapgs = instr_create(dcontext);
 
-    /* TODO i#31: If Kernel Indirect Branch Tracking (IBT) is enabled, the first instruction
-     * at target (entry_SYSCALL_64) is endbr64 (0xf3 0x0f 0x1e 0xfa). Skip it
+    /* TODO i#31: If Kernel Indirect Branch Tracking (IBT) is enabled, the first
+     * instruction at target (entry_SYSCALL_64) is endbr64 (0xf3 0x0f 0x1e 0xfa). Skip it
      * since endbr64 is not yet implemented in DynamoRIO's opcode tables.
      */
-    if (target[0] == 0xf3 && target[1] == 0x0f && target[2] == 0x1e && target[3] == 0xfa) {
+    if (target[0] == 0xf3 && target[1] == 0x0f && target[2] == 0x1e &&
+        target[3] == 0xfa) {
         target += 4;
     }
 
@@ -3180,7 +3182,7 @@ emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target, 
 
     instrlist_t *ilist = instrlist_create(dcontext);
     APP(ilist, swapgs);
-     /* Save XAX and XDI. Get dcontext into XDI. */
+    /* Save XAX and XDI. Get dcontext into XDI. */
     append_shared_get_dcontext(dcontext, ilist, true /* save_xdi */);
     APP(ilist, SAVE_TO_TLS(dcontext, REG_XAX, TLS_XAX_SLOT));
     /* dcontext->next_tag = target */
@@ -3240,10 +3242,11 @@ append_push_mcontext(dcontext_t *dcontext, int extra_stack, instrlist_t *ilist)
     APP(ilist, INSTR_CREATE_push_imm(dcontext, OPND_CREATE_INT32(0)));
     APP(ilist, INSTR_CREATE_RAW_pushf(dcontext));
     ASSERT(!preserve_xmm_caller_saved());
-    APP(ilist, INSTR_CREATE_lea(
-                   dcontext, opnd_create_reg(REG_XSP),
-                   opnd_create_base_disp(REG_XSP, REG_NULL, 0, -simd_slots_size, OPSZ_lea)));
-#ifdef X64
+    APP(ilist,
+        INSTR_CREATE_lea(
+            dcontext, opnd_create_reg(REG_XSP),
+            opnd_create_base_disp(REG_XSP, REG_NULL, 0, -simd_slots_size, OPSZ_lea)));
+#    ifdef X64
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R15)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R14)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R13)));
@@ -3252,7 +3255,7 @@ append_push_mcontext(dcontext_t *dcontext, int extra_stack, instrlist_t *ilist)
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R10)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R9)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_R8)));
-#endif
+#    endif
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XAX)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XCX)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XDX)));
@@ -3262,15 +3265,17 @@ append_push_mcontext(dcontext_t *dcontext, int extra_stack, instrlist_t *ilist)
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XSI)));
     APP(ilist, INSTR_CREATE_push(dcontext, opnd_create_reg(REG_XDI)));
     /* We pushed the wrong value for rsp. Fix that. */
-    APP(ilist, INSTR_CREATE_lea(
-                   dcontext, opnd_create_reg(REG_XAX),
-                   opnd_create_base_disp(REG_XSP, REG_NULL, 0,
-                                         sizeof(priv_mcontext_t) + extra_stack, OPSZ_lea)));
-    APP(ilist, INSTR_CREATE_mov_st(
-                   dcontext,
-                   opnd_create_base_disp(REG_XSP, REG_NULL, 0,
-                                         offsetof(priv_mcontext_t, xsp), OPSZ_PTR),
-                   opnd_create_reg(REG_XAX)));
+    APP(ilist,
+        INSTR_CREATE_lea(dcontext, opnd_create_reg(REG_XAX),
+                         opnd_create_base_disp(REG_XSP, REG_NULL, 0,
+                                               sizeof(priv_mcontext_t) + extra_stack,
+                                               OPSZ_lea)));
+    APP(ilist,
+        INSTR_CREATE_mov_st(dcontext,
+                            opnd_create_base_disp(REG_XSP, REG_NULL, 0,
+                                                  offsetof(priv_mcontext_t, xsp),
+                                                  OPSZ_PTR),
+                            opnd_create_reg(REG_XAX)));
 }
 
 /*
@@ -3496,15 +3501,14 @@ emit_common_vector_entry(dcontext_t *dcontext, byte *tls_base,
 */
 byte *
 emit_vector_entry(dcontext_t *dcontext, byte *common_vector_entry_pc,
-                  interrupt_vector_t vector, byte *pc) {
-    instrlist_t* ilist = instrlist_create(dcontext);
+                  interrupt_vector_t vector, byte *pc)
+{
+    instrlist_t *ilist = instrlist_create(dcontext);
     if (!vector_has_error_code(vector)) {
-        APP(ilist, INSTR_CREATE_push_imm(dcontext,
-                                         OPND_CREATE_INT32(MAGIC_FAKE_ERROR)));
+        APP(ilist, INSTR_CREATE_push_imm(dcontext, OPND_CREATE_INT32(MAGIC_FAKE_ERROR)));
     }
     APP(ilist, INSTR_CREATE_push_imm(dcontext, OPND_CREATE_INT32(vector)));
-    APP(ilist, INSTR_CREATE_jmp(dcontext,
-                                opnd_create_pc(common_vector_entry_pc)));
+    APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc(common_vector_entry_pc)));
     pc = instrlist_encode(dcontext, ilist, pc, false);
     instrlist_clear_and_destroy(dcontext, ilist);
     return pc;

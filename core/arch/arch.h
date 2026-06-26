@@ -1275,11 +1275,14 @@ emit_do_syscall(dcontext_t *dcontext, generated_code_t *code, byte *pc,
 #ifdef LINUX_KERNEL
 #    define VECTOR_ENTRY_CODE_SIZE (2 * PUSH_IMM32_LENGTH + JMP_LONG_LENGTH)
 byte *
-emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target, cache_pc pc);
+emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target,
+                   cache_pc pc);
 byte *
-emit_common_vector_entry(dcontext_t *dcontext, byte *tls_base, interrupt_handler_t handler, cache_pc pc);
+emit_common_vector_entry(dcontext_t *dcontext, byte *tls_base,
+                         interrupt_handler_t handler, cache_pc pc);
 byte *
-emit_vector_entry(dcontext_t *dcontext, byte *common_vector_entry_pc, interrupt_vector_t vector, cache_pc pc);
+emit_vector_entry(dcontext_t *dcontext, byte *common_vector_entry_pc,
+                  interrupt_vector_t vector, cache_pc pc);
 #endif
 
 #ifdef AARCH64

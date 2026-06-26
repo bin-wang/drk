@@ -2040,13 +2040,15 @@ get_do_vmkuw_syscall_entry(dcontext_t *dcontext)
 
 #ifdef LINUX_KERNEL
 cache_pc
-get_syscall_entry(dcontext_t *dcontext) {
+get_syscall_entry(dcontext_t *dcontext)
+{
     generated_code_t *code = THREAD_GENCODE(dcontext);
     return (cache_pc)code->syscall_entry;
 }
 
 cache_pc
-get_vector_entry(dcontext_t *dcontext, interrupt_vector_t vector) {
+get_vector_entry(dcontext_t *dcontext, interrupt_vector_t vector)
+{
     generated_code_t *code = THREAD_GENCODE(dcontext);
     ASSERT(vector >= VECTOR_START && vector < VECTOR_END);
     return (cache_pc)code->vector_entry[vector - VECTOR_START];
@@ -2063,10 +2065,8 @@ vector_has_error_code(interrupt_vector_t vector)
     case VECTOR_STACK_FAULT:
     case VECTOR_GENERAL_PROTECTION:
     case VECTOR_PAGE_FAULT:
-    case VECTOR_ALIGNMENT_CHECK:
-        return true;
-    default:
-        return false;
+    case VECTOR_ALIGNMENT_CHECK: return true;
+    default: return false;
     }
 }
 
