@@ -967,8 +967,8 @@ ibl_linking_common(dcontext_t *dcontext, cache_pc interrupted_ibl_pc, bool link)
                    JMP_LONG_LENGTH);
         } else {
             IF_DEBUG(byte *pc =)
-            insert_relative_jump(exit->jmp_pc,
-                                 get_ibl_found_unlinked_target(code, exit), false);
+            insert_relative_jump(exit->jmp_pc, get_ibl_found_unlinked_target(code, exit),
+                                 false);
             ASSERT(pc - exit->jmp_pc == JMP_LONG_LENGTH);
         }
     }

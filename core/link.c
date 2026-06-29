@@ -830,8 +830,7 @@ is_ibl_sourceless_linkstub(const linkstub_t *l)
     return (l == &linkstub_ibl_trace_ret || l == &linkstub_ibl_trace_jmp ||
             l == &linkstub_ibl_trace_call || l == &linkstub_ibl_bb_ret ||
             l == &linkstub_ibl_bb_jmp || l == &linkstub_ibl_bb_call ||
-            l == &linkstub_ibl_unlinked_found ||
-            is_special_ibl_linkstub(l));
+            l == &linkstub_ibl_unlinked_found || is_special_ibl_linkstub(l));
 }
 
 const linkstub_t *

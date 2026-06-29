@@ -2681,9 +2681,8 @@ get_ibl_code_from_routine_pc(dcontext_t *dcontext, cache_pc pc)
 #if defined(X86) && defined(X64)
             for (mode = GENCODE_X64; mode <= GENCODE_X86_TO_X64; mode++) {
 #endif
-                ibl_code_t *code =
-                    get_ibl_routine_code_internal(dcontext, source_fragment_type,
-                                                  branch_type _IF_X86_64(mode));
+                ibl_code_t *code = get_ibl_routine_code_internal(
+                    dcontext, source_fragment_type, branch_type _IF_X86_64(mode));
                 if (code != NULL && code->initialized &&
                     pc >= code->indirect_branch_lookup_routine &&
                     pc < code->indirect_branch_lookup_routine_end) {

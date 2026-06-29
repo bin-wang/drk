@@ -3258,9 +3258,8 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
 #if defined(AARCH64) || defined(RISCV64)
         ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569 i#3544 */
 #else
-        final_jmp =
-            XINST_CREATE_jump_mem(dcontext,
-                                  OPND_CREATE_MEMPTR(SCRATCH_REG2, start_pc_offset));
+        final_jmp = XINST_CREATE_jump_mem(
+            dcontext, OPND_CREATE_MEMPTR(SCRATCH_REG2, start_pc_offset));
         APP(ilist, final_jmp);
 #endif
     } else {
@@ -3283,10 +3282,8 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
                     RESTORE_FROM_TLS(dcontext, SCRATCH_REG2, MANGLE_XCX_SPILL_SLOT));
             } else
                 APP(ilist, RESTORE_FROM_DC(dcontext, SCRATCH_REG2, SCRATCH_REG2_OFFS));
-            final_jmp =
-                XINST_CREATE_jump_mem(
-                    dcontext,
-                    OPND_DC_FIELD(absolute, dcontext, OPSZ_PTR, SCRATCH_REG2_OFFS));
+            final_jmp = XINST_CREATE_jump_mem(
+                dcontext, OPND_DC_FIELD(absolute, dcontext, OPSZ_PTR, SCRATCH_REG2_OFFS));
             APP(ilist, final_jmp);
 #elif defined(AARCH64)
             ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569: NYI on AArch64 */
@@ -3308,8 +3305,7 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
             ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569 i#3544 */
 #else
             final_jmp =
-                XINST_CREATE_jump_mem(dcontext,
-                                      OPND_TLS_FIELD(INDIRECT_STUB_SPILL_SLOT));
+                XINST_CREATE_jump_mem(dcontext, OPND_TLS_FIELD(INDIRECT_STUB_SPILL_SLOT));
             APP(ilist, final_jmp);
 #endif
         }
@@ -3329,8 +3325,9 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
         exit->original_jmp_length = instr_length(dcontext, final_jmp);
         ASSERT(exit->original_jmp_length <= MAX_INSTR_LENGTH);
         if (exit->original_jmp_length < JMP_LONG_LENGTH) {
-            APP(ilist, INSTR_CREATE_nopNbyte(dcontext,
-                                             JMP_LONG_LENGTH - exit->original_jmp_length));
+            APP(ilist,
+                INSTR_CREATE_nopNbyte(dcontext,
+                                      JMP_LONG_LENGTH - exit->original_jmp_length));
         }
         memset(exit->original_jmp_code, 0x90, sizeof(exit->original_jmp_code));
         instr_encode(dcontext, final_jmp, exit->original_jmp_code);
