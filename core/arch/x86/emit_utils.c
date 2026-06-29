@@ -51,6 +51,10 @@
 
 #include "decode_private.h"
 
+#ifdef LINUX_KERNEL
+#    include "msr.h"
+#endif
+
 #define PRE instrlist_meta_preinsert
 #define APP instrlist_meta_append
 
