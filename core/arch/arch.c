@@ -993,11 +993,29 @@ emit_ibl_routine_and_template(dcontext_t *dcontext, generated_code_t *code, byte
 
     pc = emit_indirect_branch_lookup(dcontext, code, pc, fcache_return_pc,
                                      target_trace_table, inline_ibl_head, ibl_code);
+    ibl_code->indirect_branch_lookup_routine_end = pc;
     if (inline_ibl_head) {
         /* create the inlined ibl template */
         pc = check_size_and_cache_line(isa_mode, code, pc);
         pc = emit_inline_ibl_stub(dcontext, pc, ibl_code, target_trace_table);
     }
+
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    ibl_code->found_unlinked = pc;
+    pc = emit_ibl_found_unlinked_code(dcontext, pc, fcache_return_pc, ibl_code, false,
+                                      false);
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    ibl_code->found_unlinked_prefix = pc;
+    pc = emit_ibl_found_unlinked_code(dcontext, pc, fcache_return_pc, ibl_code, false,
+                                      true);
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    ibl_code->found_unlinked_eflags = pc;
+    pc = emit_ibl_found_unlinked_code(dcontext, pc, fcache_return_pc, ibl_code, true,
+                                      false);
+    pc = check_size_and_cache_line(isa_mode, code, pc);
+    ibl_code->found_unlinked_eflags_prefix = pc;
+    pc = emit_ibl_found_unlinked_code(dcontext, pc, fcache_return_pc, ibl_code, true,
+                                      true);
 
     ibl_code->far_ibl = pc;
     pc = emit_far_ibl(
@@ -2644,6 +2662,38 @@ get_ibl_routine_code(dcontext_t *dcontext, ibl_branch_type_t branch_type,
         fragment_flags _IF_X86_64(dcontext == GLOBAL_DCONTEXT
                                       ? FRAGMENT_GENCODE_MODE(fragment_flags)
                                       : GENCODE_FROM_DCONTEXT));
+}
+
+ibl_code_t *
+get_ibl_code_from_routine_pc(dcontext_t *dcontext, cache_pc pc)
+{
+    ibl_source_fragment_type_t source_fragment_type;
+    ibl_branch_type_t branch_type;
+#if defined(X86) && defined(X64)
+    gencode_mode_t mode;
+#endif
+
+    for (source_fragment_type = IBL_SOURCE_TYPE_START;
+         source_fragment_type < IBL_SOURCE_TYPE_END; source_fragment_type++) {
+        for (branch_type = IBL_BRANCH_TYPE_START; branch_type < IBL_BRANCH_TYPE_END;
+             branch_type++) {
+#if defined(X86) && defined(X64)
+            for (mode = GENCODE_X64; mode <= GENCODE_X86_TO_X64; mode++) {
+#endif
+                ibl_code_t *code =
+                    get_ibl_routine_code_internal(dcontext, source_fragment_type,
+                                                  branch_type _IF_X86_64(mode));
+                if (code != NULL && code->initialized &&
+                    pc >= code->indirect_branch_lookup_routine &&
+                    pc < code->indirect_branch_lookup_routine_end) {
+                    return code;
+                }
+#if defined(X86) && defined(X64)
+            }
+#endif
+        }
+    }
+    return NULL;
 }
 
 #ifdef WINDOWS

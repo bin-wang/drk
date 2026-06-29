@@ -99,6 +99,7 @@ typedef enum {
 
 struct _fragment_entry_t; /* in fragment.h */
 struct _ibl_table_t;      /* in fragment.h */
+struct ibl_code_t;        /* in arch.h */
 
 /* Scratch space and state required to be easily accessible from
  * in-cache indirect branch lookup routines, store in thread-local storage.
@@ -1238,6 +1239,12 @@ void
 link_indirect_exit(dcontext_t *dcontext, fragment_t *f, linkstub_t *l, bool hot_patch);
 void
 unlink_indirect_exit(dcontext_t *dcontext, fragment_t *f, linkstub_t *l);
+void
+unlink_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc);
+void
+link_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc);
+struct ibl_code_t *
+get_ibl_code_from_routine_pc(dcontext_t *dcontext, cache_pc pc);
 void
 insert_fragment_prefix(dcontext_t *dcontext, fragment_t *f);
 int

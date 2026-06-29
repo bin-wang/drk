@@ -497,6 +497,8 @@ extern const linkstub_t linkstub_selfmod;
 #endif
 const linkstub_t *
 get_ibl_deleted_linkstub(void);
+const linkstub_t *
+get_ibl_unlinked_found_linkstub(void);
 /* This is used for Windows APC, callback, etc. and Linux sigreturn, forge fault, etc. */
 const linkstub_t *
 get_asynch_linkstub(void);

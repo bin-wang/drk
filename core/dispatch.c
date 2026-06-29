@@ -1203,6 +1203,12 @@ dispatch_exit_fcache(dcontext_t *dcontext)
          * we'll keep coming back here on hits in the outdated table.
          */
         fragment_update_ibl_tables(dcontext);
+    } else if (dcontext->last_exit == get_ibl_unlinked_found_linkstub()) {
+        fragment_t *ibl_target, wrapper;
+        ASSERT(in_fcache(dcontext->next_tag));
+        ibl_target = fragment_pclookup(dcontext, dcontext->next_tag, &wrapper);
+        ASSERT(ibl_target != NULL);
+        dcontext->next_tag = ibl_target->tag;
     }
 
     /* ref bug 2323, we need monitor to restore last fragment now,
@@ -1401,6 +1407,11 @@ dispatch_exit_fcache_stats(dcontext_t *dcontext)
     } else if (dcontext->last_exit == get_ibl_deleted_linkstub()) {
         LOG(THREAD, LOG_DISPATCH, 2, "Exit from fragment deleted but hit in ibl\n");
         STATS_INC(num_exits_ibl_deleted);
+        KSWITCH_STOP_NOT_PROPAGATED(fcache_default);
+        return;
+    } else if (dcontext->last_exit == get_ibl_unlinked_found_linkstub()) {
+        LOG(THREAD, LOG_DISPATCH, 2, "Exit from interrupt in ibl hit in ibl\n");
+        STATS_INC(num_exits_ibl_unlinked_found);
         KSWITCH_STOP_NOT_PROPAGATED(fcache_default);
         return;
     } else if (dcontext->last_exit == get_asynch_linkstub()) {

@@ -934,6 +934,59 @@ unlink_indirect_exit(dcontext_t *dcontext, fragment_t *f, linkstub_t *l)
 #endif
 }
 
+static byte *
+get_ibl_found_unlinked_target(ibl_code_t *ibl_code, ibl_found_exit_t *exit)
+{
+    if (exit->restored_eflags && exit->targets_prefix) {
+        return ibl_code->found_unlinked_prefix;
+    } else if (exit->restored_eflags && !exit->targets_prefix) {
+        return ibl_code->found_unlinked;
+    } else if (!exit->restored_eflags && exit->targets_prefix) {
+        return ibl_code->found_unlinked_eflags_prefix;
+    } else { /* !exit->restored_eflags && !exit->targets_prefix */
+        /* In append_ibl_found, !target_prefix => restore_eflags. */
+        ASSERT_NOT_REACHED();
+        return ibl_code->found_unlinked_eflags;
+    }
+}
+
+static void
+ibl_linking_common(dcontext_t *dcontext, cache_pc interrupted_ibl_pc, bool link)
+{
+    int i;
+    generated_code_t *gencode = THREAD_GENCODE(dcontext);
+    ibl_code_t *code = get_ibl_code_from_routine_pc(dcontext, interrupted_ibl_pc);
+    ASSERT(code != NULL);
+    ASSERT(code->indirect_branch_lookup_routine >= gencode->gen_start_pc &&
+           code->indirect_branch_lookup_routine < gencode->gen_end_pc);
+    protect_generated_code(gencode, WRITABLE);
+    for (i = 0; i < code->num_ibl_found_exits; i++) {
+        ibl_found_exit_t *exit = &code->ibl_found_exits[i];
+        if (link) {
+            memcpy(vmcode_get_writable_addr(exit->jmp_pc), exit->original_jmp_code,
+                   JMP_LONG_LENGTH);
+        } else {
+            IF_DEBUG(byte *pc =)
+            insert_relative_jump(exit->jmp_pc,
+                                 get_ibl_found_unlinked_target(code, exit), false);
+            ASSERT(pc - exit->jmp_pc == JMP_LONG_LENGTH);
+        }
+    }
+    protect_generated_code(gencode, READONLY);
+}
+
+void
+unlink_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc)
+{
+    ibl_linking_common(dcontext, interrupted_ibl_pc, false /* unlink */);
+}
+
+void
+link_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc)
+{
+    ibl_linking_common(dcontext, interrupted_ibl_pc, true /* link */);
+}
+
 /*******************************************************************************
  * COARSE-GRAIN FRAGMENT SUPPORT
  */
@@ -3090,6 +3143,52 @@ emit_indirect_branch_lookup(dcontext_t *dcontext, generated_code_t *code, byte *
     instrlist_clear(dcontext, &ilist);
 
     return pc + ibl_code->ibl_routine_length;
+}
+
+byte *
+emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return_pc,
+                             ibl_code_t *ibl_code, bool restore_eflags,
+                             bool include_prefix)
+{
+    instrlist_t *ilist = instrlist_create(dcontext);
+    bool absolute = !ibl_code->thread_shared_routine;
+    IF_X86_64(bool x86_to_x64_ibl_opt =
+                  (ibl_code->x86_to_x64_mode && DYNAMO_OPTION(x86_to_x64_ibl_opt));)
+    if (absolute) {
+        ASSERT_NOT_IMPLEMENTED(false);
+        return NULL;
+    }
+
+    if (restore_eflags || include_prefix) {
+        insert_restore_eflags(dcontext, ilist, NULL /* append */, 0, IBL_EFLAGS_IN_TLS(),
+                              !absolute _IF_X64(x86_to_x64_ibl_opt));
+    }
+
+    APP(ilist, SAVE_TO_TLS(dcontext, REG_XAX, DIRECT_STUB_SPILL_SLOT));
+
+    if (include_prefix) {
+        APP(ilist,
+            INSTR_CREATE_mov_ld(dcontext, opnd_create_reg(REG_XAX),
+                                OPND_CREATE_MEMPTR(REG_XCX, HASHLOOKUP_START_PC_OFFS)));
+        APP(ilist, RESTORE_FROM_TLS(dcontext, REG_XCX, MANGLE_XCX_SPILL_SLOT));
+    } else {
+        APP(ilist, RESTORE_FROM_TLS(dcontext, REG_XAX, INDIRECT_STUB_SPILL_SLOT));
+    }
+
+    append_shared_get_dcontext(dcontext, ilist, true /* save xdi to scratch */);
+
+    APP(ilist, SAVE_TO_DC(dcontext, REG_XAX, NEXT_TAG_OFFSET));
+    APP(ilist,
+        INSTR_CREATE_mov_imm(
+            dcontext, opnd_create_reg(REG_XAX),
+            OPND_CREATE_INTPTR((ptr_uint_t)get_ibl_unlinked_found_linkstub())));
+
+    append_shared_restore_dcontext_reg(dcontext, ilist);
+    APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc(fcache_return_pc)));
+
+    pc = instrlist_encode(dcontext, ilist, pc, false /* no instr targets */);
+    instrlist_clear_and_destroy(dcontext, ilist);
+    return pc;
 }
 
 void

@@ -4289,6 +4289,8 @@ fragment_add_ibl_target(dcontext_t *dcontext, app_pc tag, ibl_branch_type_t bran
             } else if (!INTERNAL_OPTION(link_ibl)) {
                 reason = "-no_link_ibl prevents ibl";
                 STATS_INC(num_ibt_exit_nolink);
+            } else if (dcontext->last_exit == get_ibl_unlinked_found_linkstub()) {
+                reason = "IBL routine unlinked for interrupt.";
             } else if (DYNAMO_OPTION(disable_traces) &&
                        !TEST(FRAG_LINKED_OUTGOING, dcontext->last_fragment->flags)) {
                 reason = "IBL fragment unlinked in signal handler";

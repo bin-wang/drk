@@ -161,6 +161,7 @@ static
 #endif
     const linkstub_t linkstub_selfmod = { LINK_FAKE, 0 };
 static const linkstub_t linkstub_ibl_deleted = { LINK_FAKE, 0 };
+static const linkstub_t linkstub_ibl_unlinked_found = { LINK_FAKE, 0 };
 static const linkstub_t linkstub_asynch = { LINK_FAKE, 0 };
 static const linkstub_t linkstub_native_exec = { LINK_FAKE, 0 };
 /* this one we give the flag LINK_NI_SYSCALL for executing a syscall in d_r_dispatch() */
@@ -746,6 +747,12 @@ get_ibl_deleted_linkstub()
 }
 
 const linkstub_t *
+get_ibl_unlinked_found_linkstub()
+{
+    return &linkstub_ibl_unlinked_found;
+}
+
+const linkstub_t *
 get_asynch_linkstub()
 {
     return &linkstub_asynch;
@@ -823,6 +830,7 @@ is_ibl_sourceless_linkstub(const linkstub_t *l)
     return (l == &linkstub_ibl_trace_ret || l == &linkstub_ibl_trace_jmp ||
             l == &linkstub_ibl_trace_call || l == &linkstub_ibl_bb_ret ||
             l == &linkstub_ibl_bb_jmp || l == &linkstub_ibl_bb_call ||
+            l == &linkstub_ibl_unlinked_found ||
             is_special_ibl_linkstub(l));
 }
 

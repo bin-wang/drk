@@ -834,12 +834,25 @@ typedef struct patch_entry_t {
                            negative offsets are from end of instruction */
 } patch_entry_t;
 
+#define MAX_IBL_FOUND_EXITS 2
+
+typedef struct ibl_found_exit_t {
+    byte *jmp_pc;
+    int original_jmp_length;
+    byte original_jmp_code[MAX_INSTR_LENGTH];
+    /* True iff this exit targets fragment prefixes. */
+    bool targets_prefix;
+    /* True iff this exit restores eflags. */
+    bool restored_eflags;
+} ibl_found_exit_t;
+
 enum {
     MAX_PATCH_ENTRIES =
 #ifdef HASHTABLE_STATISTICS
         6 + /* will need more only for statistics */
 #endif
-        7, /* we use 5 normally, 7 w/ -atomic_inlined_linking and inlining */
+        7 + /* we use 5 normally, 7 w/ -atomic_inlined_linking and inlining */
+        MAX_IBL_FOUND_EXITS,
     /* Patch entry flags */
     /* Patch offset entries for dynamic updates from input variables */
     /* use computed address if set, value at address otherwise */
@@ -910,6 +923,13 @@ typedef struct ibl_code_t {
     far_ref_t far_jmp_unlinked_opnd;
 #endif
     byte *unlinked_ibl_entry;
+    byte *found_unlinked;
+    byte *found_unlinked_eflags;
+    byte *found_unlinked_prefix;
+    byte *found_unlinked_eflags_prefix;
+    int num_ibl_found_exits;
+    ibl_found_exit_t ibl_found_exits[MAX_IBL_FOUND_EXITS];
+    byte *indirect_branch_lookup_routine_end;
     byte *target_delete_entry;
     uint ibl_routine_length;
     /* offsets into ibl routine */
@@ -1229,6 +1249,10 @@ byte *
 emit_indirect_branch_lookup(dcontext_t *dcontext, generated_code_t *code, byte *pc,
                             byte *fcache_return_pc, bool target_trace_table,
                             bool inline_ibl_head, ibl_code_t *ibl_code);
+byte *
+emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return_pc,
+                             ibl_code_t *ibl_code, bool restore_eflags,
+                             bool include_prefix);
 void
 update_indirect_branch_lookup(dcontext_t *dcontext);
 bool

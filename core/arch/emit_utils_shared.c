@@ -3163,6 +3163,7 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
     /*>>>    RESTORE_FROM_UPCONTEXT xbx_OFFSET,%xbx                  */
     /*>>>    jmp     *FRAGMENT_START_PC_OFFS(%xcx)                   */
     instr_t *inst = NULL;
+    intrt_t *final_jmp = NULL;
     IF_X86_64(bool x86_to_x64_ibl_opt =
                   (ibl_code->x86_to_x64_mode && DYNAMO_OPTION(x86_to_x64_ibl_opt));)
 
@@ -3257,9 +3258,10 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
 #if defined(AARCH64) || defined(RISCV64)
         ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569 i#3544 */
 #else
-        APP(ilist,
+        final_jmp =
             XINST_CREATE_jump_mem(dcontext,
-                                  OPND_CREATE_MEMPTR(SCRATCH_REG2, start_pc_offset)));
+                                  OPND_CREATE_MEMPTR(SCRATCH_REG2, start_pc_offset));
+        APP(ilist, final_jmp);
 #endif
     } else {
         /* There is no prefix so we must restore all and jmp through memory:
@@ -3281,10 +3283,11 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
                     RESTORE_FROM_TLS(dcontext, SCRATCH_REG2, MANGLE_XCX_SPILL_SLOT));
             } else
                 APP(ilist, RESTORE_FROM_DC(dcontext, SCRATCH_REG2, SCRATCH_REG2_OFFS));
-            APP(ilist,
+            final_jmp =
                 XINST_CREATE_jump_mem(
                     dcontext,
-                    OPND_DC_FIELD(absolute, dcontext, OPSZ_PTR, SCRATCH_REG2_OFFS)));
+                    OPND_DC_FIELD(absolute, dcontext, OPSZ_PTR, SCRATCH_REG2_OFFS));
+            APP(ilist, final_jmp);
 #elif defined(AARCH64)
             ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569: NYI on AArch64 */
 #elif defined(ARM)
@@ -3304,12 +3307,35 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
 #if defined(AARCH64) || defined(RISCV64)
             ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569 i#3544 */
 #else
-            APP(ilist,
+            final_jmp =
                 XINST_CREATE_jump_mem(dcontext,
-                                      OPND_TLS_FIELD(INDIRECT_STUB_SPILL_SLOT)));
+                                      OPND_TLS_FIELD(INDIRECT_STUB_SPILL_SLOT));
+            APP(ilist, final_jmp);
 #endif
         }
     }
+
+    inst = final_jmp;
+#ifdef X86
+    if (final_jmp != NULL) {
+        ibl_found_exit_t *exit;
+        ASSERT(ibl_code->num_ibl_found_exits < MAX_IBL_FOUND_EXITS);
+        exit = &ibl_code->ibl_found_exits[ibl_code->num_ibl_found_exits];
+        ibl_code->num_ibl_found_exits += 1;
+        add_patch_marker(patch, final_jmp, PATCH_ASSEMBLE_ABSOLUTE, 0,
+                         (ptr_uint_t *)&exit->jmp_pc);
+        exit->targets_prefix = target_prefix;
+        exit->restored_eflags = restore_eflags;
+        exit->original_jmp_length = instr_length(dcontext, final_jmp);
+        ASSERT(exit->original_jmp_length <= MAX_INSTR_LENGTH);
+        if (exit->original_jmp_length < JMP_LONG_LENGTH) {
+            APP(ilist, INSTR_CREATE_nopNbyte(dcontext,
+                                             JMP_LONG_LENGTH - exit->original_jmp_length));
+        }
+        memset(exit->original_jmp_code, 0x90, sizeof(exit->original_jmp_code));
+        instr_encode(dcontext, final_jmp, exit->original_jmp_code);
+    }
+#endif
 
     if (fragment_found != NULL)
         *fragment_found = inst;

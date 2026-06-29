@@ -686,6 +686,7 @@ STATS_DEF("Fcache exits, fine targeting non-th coarse", num_exits_fine2non_th_co
 STATS_DEF("Fcache exits, system call executions", num_exits_syscalls)
 STATS_DEF("Fcache exits, flushed due to code mod", num_exits_code_mod_flush)
 STATS_DEF("Fcache exits, deleted but hit in ibl", num_exits_ibl_deleted)
+STATS_DEF("Fcache exits, interrupt in ibl hit in ibl", num_exits_ibl_unlinked_found)
 STATS_DEF("Fcache exits, asynch", num_exits_asynch)
 STATS_DEF("Fcache exits, native_exec executions", num_exits_native_exec)
 STATS_DEF("Fcache exits, native_exec syscalls", num_exits_native_exec_syscall)
