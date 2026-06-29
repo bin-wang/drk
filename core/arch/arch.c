@@ -990,6 +990,7 @@ emit_ibl_routine_and_template(dcontext_t *dcontext, generated_code_t *code, byte
     ibl_code->thread_shared_routine = thread_shared;
     ibl_code->branch_type = branch_type;
     ibl_code->source_fragment_type = source_type;
+    ibl_code->num_ibl_found_exits = 0;
 
     pc = emit_indirect_branch_lookup(dcontext, code, pc, fcache_return_pc,
                                      target_trace_table, inline_ibl_head, ibl_code);

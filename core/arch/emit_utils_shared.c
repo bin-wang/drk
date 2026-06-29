@@ -3163,7 +3163,7 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
     /*>>>    RESTORE_FROM_UPCONTEXT xbx_OFFSET,%xbx                  */
     /*>>>    jmp     *FRAGMENT_START_PC_OFFS(%xcx)                   */
     instr_t *inst = NULL;
-    intrt_t *final_jmp = NULL;
+    instr_t *final_jmp = NULL;
     IF_X86_64(bool x86_to_x64_ibl_opt =
                   (ibl_code->x86_to_x64_mode && DYNAMO_OPTION(x86_to_x64_ibl_opt));)
 

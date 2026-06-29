@@ -3175,7 +3175,7 @@ emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return
         APP(ilist, RESTORE_FROM_TLS(dcontext, REG_XAX, INDIRECT_STUB_SPILL_SLOT));
     }
 
-    append_shared_get_dcontext(dcontext, ilist, true /* save xdi to scratch */);
+    insert_shared_get_dcontext(dcontext, ilist, NULL, true /* save xdi to scratch */);
 
     APP(ilist, SAVE_TO_DC(dcontext, REG_XAX, NEXT_TAG_OFFSET));
     APP(ilist,
@@ -3183,7 +3183,7 @@ emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return
             dcontext, opnd_create_reg(REG_XAX),
             OPND_CREATE_INTPTR((ptr_uint_t)get_ibl_unlinked_found_linkstub())));
 
-    append_shared_restore_dcontext_reg(dcontext, ilist);
+    insert_shared_restore_dcontext_reg(dcontext, ilist, NULL);
     APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc(fcache_return_pc)));
 
     pc = instrlist_encode(dcontext, ilist, pc, false /* no instr targets */);
@@ -3286,7 +3286,7 @@ emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target,
     instrlist_t *ilist = instrlist_create(dcontext);
     APP(ilist, swapgs);
     /* Save XAX and XDI. Get dcontext into XDI. */
-    append_shared_get_dcontext(dcontext, ilist, true /* save_xdi */);
+    insert_shared_get_dcontext(dcontext, ilist, NULL, true /* save_xdi */);
     APP(ilist, SAVE_TO_TLS(dcontext, REG_XAX, TLS_XAX_SLOT));
     /* dcontext->next_tag = target */
     APP(ilist,
@@ -3300,7 +3300,7 @@ emit_syscall_entry(dcontext_t *dcontext, cache_pc fcache_return, app_pc target,
                              OPND_CREATE_INTPTR(get_syscall_entry_linkstub())));
     /* Restore XDI. Don't need to restore XAX because fcache_return does that
      * for us. */
-    append_shared_restore_dcontext_reg(dcontext, ilist);
+    insert_shared_restore_dcontext_reg(dcontext, ilist, NULL);
     /* Do fcache_return. */
     APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc(fcache_return)));
     APP(ilist, INSTR_CREATE_jmp(dcontext, opnd_create_pc((app_pc)unexpected_return)));
