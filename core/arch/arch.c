@@ -2076,6 +2076,12 @@ vector_is_synchronous(interrupt_vector_t vector)
     ASSERT(vector >= VECTOR_START && vector < VECTOR_END);
     return vector >= VECTOR_EXCEPTION_START && vector < VECTOR_EXCEPTION_END;
 }
+
+bool
+was_kernel_interrupted(interrupt_stack_frame_t *frame)
+{
+    return (frame->cs & 3) == 0;
+}
 #endif
 
 cache_pc
