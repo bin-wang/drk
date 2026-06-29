@@ -56,7 +56,7 @@ typedef enum {
 typedef struct {
     union {
         struct {
-            uint32 requestor_privilige_level : 2;
+            uint32 requestor_privilege_level : 2;
             table_indicator_t table_indicator : 1;
             uint32 index : 13;
         } __attribute__((__packed__));
@@ -70,7 +70,7 @@ ASSERT_TYPE_SIZE(2, segment_selector_t);
 static inline void
 segment_selector_decode(int selector, segment_selector_t *output)
 {
-    output->requestor_privilige_level = selector & 0x3;
+    output->requestor_privilege_level = selector & 0x3;
     output->table_indicator = (selector & 0x4) >> 2;
     output->index = (selector & 0xfff8) >> 3;
 }
