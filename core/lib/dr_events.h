@@ -808,6 +808,30 @@ bool
 dr_unregister_restore_state_ex_event(bool (*func)(void *drcontext, bool restore_memory,
                                                   dr_restore_state_info_t *info));
 
+#ifdef LINUX_KERNEL
+typedef struct _dr_interrupt_t {
+    interrupt_stack_frame_t *frame;
+    interrupt_stack_frame_t *raw_frame;
+    interrupt_vector_t vector;
+    dr_mcontext_t *mcontext;
+} dr_interrupt_t;
+
+DR_API
+/**
+ * Registers a callback function for kernel interrupt events.
+ */
+void
+dr_register_interrupt_event(bool (*func)(void *drcontext, dr_interrupt_t *interrupt));
+
+DR_API
+/**
+ * Unregister a callback function for kernel interrupt events.  \return true if
+ * unregistration is successful and false if it is not (e.g., \p func was not registered).
+ */
+bool
+dr_unregister_interrupt_event(bool (*func)(void *drcontext, dr_interrupt_t *interrupt));
+#endif
+
 DR_API
 /**
  * Registers a callback function for the thread initialization event.
