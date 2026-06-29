@@ -858,6 +858,7 @@ enum { /* XXX: vs RAW_OPCODE_* enum */
        JECXZ_OPCODE = 0xe3,
        JMP_SHORT_OPCODE = 0xeb,
        JMP_OPCODE = 0xe9,
+       INTN_OPCODE = 0xcd,
        JNE_OPCODE_1 = 0x0f,
        SAHF_OPCODE = 0x9e,
        LAHF_OPCODE = 0x9f,

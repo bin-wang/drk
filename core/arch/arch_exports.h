@@ -1917,6 +1917,13 @@ typedef enum {
 
 #    define MAGIC_FAKE_ERROR 0xfffffffffbadbeef
 
+void
+patch_interrupt(dcontext_t *dcontext, cache_pc patch_pc, interrupt_vector_t vector,
+                byte save_buffer[INT_LENGTH]);
+
+void
+unpatch_interrupt(dcontext_t *dcontext, cache_pc patch_pc, byte save_buffer[INT_LENGTH]);
+
 /* Returns true if the hardware normally pushes an error code on this vector's
  * interrupt stack frame.
  */

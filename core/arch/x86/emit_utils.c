@@ -3517,6 +3517,27 @@ emit_vector_entry(dcontext_t *dcontext, byte *common_vector_entry_pc,
     instrlist_clear_and_destroy(dcontext, ilist);
     return pc;
 }
+
+void
+patch_interrupt(dcontext_t *dcontext, cache_pc patch_pc, interrupt_vector_t vector,
+                byte save_buffer[INT_LENGTH])
+{
+    memcpy(save_buffer, patch_pc, INT_LENGTH);
+    byte *write_pc = vmcode_get_writable_addr(patch_pc);
+    write_pc[0] = INTN_OPCODE;
+    ASSERT(!vector_has_error_code(vector));
+    ASSERT_TRUNCATE(write_pc[1], byte, vector);
+    write_pc[1] = (byte)vector;
+}
+
+void
+unpatch_interrupt(dcontext_t *dcontext, cache_pc patch_pc, byte save_buffer[INT_LENGTH])
+{
+    ASSERT(patch_pc[0] == INTN_OPCODE);
+    ASSERT(!vector_has_error_code(patch_pc[1]));
+    byte *write_pc = vmcode_get_writable_addr(patch_pc);
+    memcpy(write_pc, save_buffer, INT_LENGTH);
+}
 #endif /* LINUX_KERNEL */
 
 /* If code_buf points to a jmp rel32 returns true and returns the target of
