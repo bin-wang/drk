@@ -67,6 +67,13 @@
 #    include "annotations.h"
 #endif
 
+#ifdef LINUX_KERNEL
+#    include "barrier.h"
+#    include "dynamorio_module_interface.h"
+#    include "kernel_interface.h"
+#    include "msr.h"
+#endif
+
 #ifdef WINDOWS
 /* for close handle, duplicate handle, free memory and constants associated with them
  */
@@ -385,6 +392,99 @@ get_dr_stats(void)
 {
     return d_r_stats;
 }
+
+#ifdef LINUX_KERNEL
+/* Init barriers */
+static barrier_t before_dynamo_app_init;
+static barrier_t after_dynamo_app_init;
+static barrier_t before_dynamorio_app_take_over;
+
+/* Exit barriers */
+static barrier_t main_thread_exit;
+static barrier_t other_threads_exit;
+
+void
+dr_pre_smp_init(dr_exports_t *exports, const char *options)
+{
+    exports->stats_data = &nonshared_stats;
+    exports->stats_size = sizeof(dr_statistics_t);
+    kernel_setenv(DYNAMORIO_VAR_OPTIONS, options);
+    barrier_init(&before_dynamo_app_init, get_num_processors());
+    barrier_init(&after_dynamo_app_init, get_num_processors());
+    barrier_init(&before_dynamorio_app_take_over, get_num_processors());
+    barrier_init(&main_thread_exit, get_num_processors());
+    barrier_init(&other_threads_exit, get_num_processors());
+}
+
+void
+cpu_exports_init(dcontext_t *dcontext, dr_cpu_exports_t *exports)
+{
+#    ifdef KSTATS
+    if (DYNAMO_OPTION(kstats)) {
+        exports->kstats_data = &dcontext->thread_kstats->vars_kstats;
+        exports->kstats_size = sizeof(dcontext->thread_kstats->vars_kstats);
+    } else {
+#    endif
+        exports->kstats_data = NULL;
+        exports->kstats_size = 0;
+#    ifdef KSTATS
+    }
+#    endif
+}
+
+void
+dr_smp_init(dr_cpu_exports_t *exports)
+{
+    /* Interrupts are disabled at this point. */
+    if (barrier_wait(&before_dynamo_app_init)) {
+        /* barrier_wait only returns true for one thread. We designate this as
+         * the main thread for initilization.
+         */
+        dynamorio_app_init();
+        barrier_wait(&after_dynamo_app_init);
+    } else {
+        barrier_wait(&after_dynamo_app_init);
+        /* The following three lines are called for the main thread by
+         * dynamorio_app_init.
+         */
+        dynamo_thread_init(NULL, NULL, NULL, false);
+        ENTERING_DR();
+        // instrument_thread_init(get_thread_private_dcontext(), false, false);
+    }
+    os_warm_fcache(get_thread_private_dcontext());
+    cpu_exports_init(get_thread_private_dcontext(), exports);
+    barrier_wait(&before_dynamorio_app_take_over);
+    /* dynamorio_app_take_over needs to be called at this point from another
+     * module. Otherwise, we would try to cache some DR instructions (i.e., this
+     * function's implicit return), which DR isn't designed to handle. See
+     * dynamorio_app_take_over() in dynamorio_module_interface.h. */
+}
+
+void
+dr_smp_exit(void)
+{
+    DEBUG_DECLARE(int res;)
+    static bool main_thread_exited = false;
+    if (barrier_wait(&main_thread_exit)) {
+        barrier_wait(&other_threads_exit);
+        barrier_destroy(&before_dynamo_app_init);
+        barrier_destroy(&after_dynamo_app_init);
+        barrier_destroy(&before_dynamorio_app_take_over);
+        barrier_destroy(&main_thread_exit);
+        barrier_destroy(&other_threads_exit);
+        IF_DEBUG(res =) dr_app_cleanup();
+        ASSERT(res == SUCCESS);
+        asm volatile("mfence");
+        main_thread_exited = true;
+    } else {
+        IF_DEBUG(res =) dynamo_thread_exit();
+        ASSERT(res == SUCCESS);
+        barrier_wait(&other_threads_exit);
+    }
+    while (!main_thread_exited) {
+    }
+}
+#endif
 
 /* initialize per-process dynamo state; this must be called before any
  * threads are created and before any other API calls are made;
