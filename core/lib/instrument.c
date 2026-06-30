@@ -256,6 +256,10 @@ static callback_list_t post_syscall_callbacks = {
 static callback_list_t kernel_xfer_callbacks = {
     0,
 };
+#else
+static callback_list_t interrupt_callbacks = {
+    0,
+};
 #endif
 #ifdef WINDOWS
 static callback_list_t exception_callbacks = {
@@ -877,6 +881,8 @@ free_all_callback_lists(void)
     free_callback_list(&post_syscall_callbacks);
 #ifndef LINUX_KERNEL
     free_callback_list(&kernel_xfer_callbacks);
+#else
+    free_callback_list(&interrupt_callbacks);
 #endif
 #ifdef WINDOWS
     free_callback_list(&exception_callbacks);
@@ -1952,6 +1958,39 @@ instrument_restore_nonfcache_state(dcontext_t *dcontext, bool restore_memory,
     return instrument_restore_nonfcache_state_prealloc(dcontext, restore_memory, mcontext,
                                                        &client_mcontext);
 }
+
+#ifdef LINUX_KERNEL
+void
+dr_register_interrupt_event(bool (*func)(void *dcontext, dr_interrupt_t *interrupt))
+{
+    if (func == NULL) {
+        CLIENT_ASSERT(false, "trying to register a NULL callback");
+        return;
+    }
+    if (!INTERNAL_OPTION(code_api)) {
+        CLIENT_ASSERT(false, "asking for interrupt event when code_api disabled");
+        return;
+    }
+    add_callback(&interrupt_callbacks, (void (*)(void))func, true);
+}
+
+bool
+dr_unregister_interrupt_event(bool (*func)(void *drcontext, dr_interrupt_t *interrupt))
+{
+    return remove_callback(&interrupt_callbacks, (void (*)(void))func, true);
+}
+
+bool
+instrument_interrupt(dcontext_t *dcontext, dr_interrupt_t *interrupt)
+{
+    bool res = true;
+    if (interrupt_callbacks.num > 0) {
+        call_all_ret(res, = res &&, , interrupt_callbacks,
+                     bool (*)(void *, dr_interrupt_t *), (void *)dcontext, interrupt);
+    }
+    return res;
+}
+#endif
 
 /* Ask whether to end trace prior to adding next_tag fragment.
  * Return values:
