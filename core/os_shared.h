@@ -117,7 +117,8 @@ os_heap_exit(void);
 /* Called on each thread right before dispatching starts. This can be used to
  * warm the fragment cache.
  */
-void os_warm_fcache(dcontext_t* dcontext);
+void
+os_warm_fcache(dcontext_t *dcontext);
 #endif
 
 /* os provided heap routines */
