@@ -1090,11 +1090,15 @@ send_interrupt_to_client(dcontext_t *dcontext, interrupt_context_t *interrupt)
 {
     bool res;
     dr_interrupt_t dr_interrupt;
+    dr_mcontext_t mc;
     dr_interrupt.frame = &interrupt->frame;
     dr_interrupt.raw_frame = interrupt->raw_frame;
     dr_interrupt.vector = interrupt->vector;
-    dr_interrupt.mcontext = interrupt->mcontext;
+    dr_mcontext_init(&mc);
+    priv_mcontext_to_dr_mcontext(&mc, interrupt->mcontext);
+    dr_interrupt.mcontext = &mc;
     res = instrument_interrupt(dcontext, &dr_interrupt);
+    dr_mcontext_to_priv_mcontext(interrupt->mcontext, &mc);
     return res;
 }
 
