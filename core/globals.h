@@ -95,8 +95,10 @@
 /* currently we always export statistics structure */
 #define DYNAMORIO_STATS_EXPORTS 1
 
-#ifdef WINDOWS
+#if defined(WINDOWS)
 #    define DYNAMORIO_EXPORT __declspec(dllexport)
+#elif defined(LINUX_KERNEL)
+#    define DYNAMORIO_EXPORT /* nothing */
 #elif defined(USE_VISIBILITY_ATTRIBUTES)
 /* PR 262804: we use "protected" instead of "default" to ensure our
  * own uses won't be preempted.  Note that for DR_APP_API in
