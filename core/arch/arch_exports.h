@@ -1239,12 +1239,14 @@ void
 link_indirect_exit(dcontext_t *dcontext, fragment_t *f, linkstub_t *l, bool hot_patch);
 void
 unlink_indirect_exit(dcontext_t *dcontext, fragment_t *f, linkstub_t *l);
+#ifdef LINUX_KERNEL
 void
 unlink_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc);
 void
 link_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc);
 struct ibl_code_t *
 get_ibl_code_from_routine_pc(dcontext_t *dcontext, cache_pc pc);
+#endif
 void
 insert_fragment_prefix(dcontext_t *dcontext, fragment_t *f);
 int

@@ -3315,7 +3315,7 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
     }
 
     inst = final_jmp;
-#ifdef X86
+#if defined(X86) && defined(LINUX_KERNEL)
     if (final_jmp != NULL) {
         ibl_found_exit_t *exit;
         ASSERT(ibl_code->num_ibl_found_exits < MAX_IBL_FOUND_EXITS);

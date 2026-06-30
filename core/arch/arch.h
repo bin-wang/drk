@@ -834,8 +834,13 @@ typedef struct patch_entry_t {
                            negative offsets are from end of instruction */
 } patch_entry_t;
 
-#define MAX_IBL_FOUND_EXITS 2
+#ifdef LINUX_KERNEL
+#    define MAX_IBL_FOUND_EXITS 2
+#else
+#    define MAX_IBL_FOUND_EXITS 0
+#endif
 
+#ifdef LINUX_KERNEL
 typedef struct ibl_found_exit_t {
     byte *jmp_pc;
     int original_jmp_length;
@@ -845,6 +850,7 @@ typedef struct ibl_found_exit_t {
     /* True iff this exit restores eflags. */
     bool restored_eflags;
 } ibl_found_exit_t;
+#endif
 
 enum {
     MAX_PATCH_ENTRIES =
@@ -923,6 +929,7 @@ typedef struct ibl_code_t {
     far_ref_t far_jmp_unlinked_opnd;
 #endif
     byte *unlinked_ibl_entry;
+#ifdef LINUX_KERNEL
     byte *found_unlinked;
     byte *found_unlinked_eflags;
     byte *found_unlinked_prefix;
@@ -930,6 +937,7 @@ typedef struct ibl_code_t {
     int num_ibl_found_exits;
     ibl_found_exit_t ibl_found_exits[MAX_IBL_FOUND_EXITS];
     byte *indirect_branch_lookup_routine_end;
+#endif
     byte *target_delete_entry;
     uint ibl_routine_length;
     /* offsets into ibl routine */
@@ -1249,10 +1257,12 @@ byte *
 emit_indirect_branch_lookup(dcontext_t *dcontext, generated_code_t *code, byte *pc,
                             byte *fcache_return_pc, bool target_trace_table,
                             bool inline_ibl_head, ibl_code_t *ibl_code);
+#ifdef LINUX_KERNEL
 byte *
 emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return_pc,
                              ibl_code_t *ibl_code, bool restore_eflags,
                              bool include_prefix);
+#endif
 void
 update_indirect_branch_lookup(dcontext_t *dcontext);
 bool

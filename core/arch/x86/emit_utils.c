@@ -934,6 +934,7 @@ unlink_indirect_exit(dcontext_t *dcontext, fragment_t *f, linkstub_t *l)
 #endif
 }
 
+#ifdef LINUX_KERNEL
 static byte *
 get_ibl_found_unlinked_target(ibl_code_t *ibl_code, ibl_found_exit_t *exit)
 {
@@ -986,6 +987,7 @@ link_ibl_routine(dcontext_t *dcontext, cache_pc interrupted_ibl_pc)
 {
     ibl_linking_common(dcontext, interrupted_ibl_pc, true /* link */);
 }
+#endif
 
 /*******************************************************************************
  * COARSE-GRAIN FRAGMENT SUPPORT
@@ -3145,6 +3147,7 @@ emit_indirect_branch_lookup(dcontext_t *dcontext, generated_code_t *code, byte *
     return pc + ibl_code->ibl_routine_length;
 }
 
+#ifdef LINUX_KERNEL
 byte *
 emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return_pc,
                              ibl_code_t *ibl_code, bool restore_eflags,
@@ -3190,6 +3193,7 @@ emit_ibl_found_unlinked_code(dcontext_t *dcontext, byte *pc, byte *fcache_return
     instrlist_clear_and_destroy(dcontext, ilist);
     return pc;
 }
+#endif
 
 void
 relink_special_ibl_xfer(dcontext_t *dcontext, int index,

@@ -990,17 +990,22 @@ emit_ibl_routine_and_template(dcontext_t *dcontext, generated_code_t *code, byte
     ibl_code->thread_shared_routine = thread_shared;
     ibl_code->branch_type = branch_type;
     ibl_code->source_fragment_type = source_type;
+#ifdef LINUX_KERNEL
     ibl_code->num_ibl_found_exits = 0;
+#endif
 
     pc = emit_indirect_branch_lookup(dcontext, code, pc, fcache_return_pc,
                                      target_trace_table, inline_ibl_head, ibl_code);
+#ifdef LINUX_KERNEL
     ibl_code->indirect_branch_lookup_routine_end = pc;
+#endif
     if (inline_ibl_head) {
         /* create the inlined ibl template */
         pc = check_size_and_cache_line(isa_mode, code, pc);
         pc = emit_inline_ibl_stub(dcontext, pc, ibl_code, target_trace_table);
     }
 
+#ifdef LINUX_KERNEL
     pc = check_size_and_cache_line(isa_mode, code, pc);
     ibl_code->found_unlinked = pc;
     pc = emit_ibl_found_unlinked_code(dcontext, pc, fcache_return_pc, ibl_code, false,
@@ -1017,6 +1022,7 @@ emit_ibl_routine_and_template(dcontext_t *dcontext, generated_code_t *code, byte
     ibl_code->found_unlinked_eflags_prefix = pc;
     pc = emit_ibl_found_unlinked_code(dcontext, pc, fcache_return_pc, ibl_code, true,
                                       true);
+#endif
 
     ibl_code->far_ibl = pc;
     pc = emit_far_ibl(
@@ -2665,22 +2671,23 @@ get_ibl_routine_code(dcontext_t *dcontext, ibl_branch_type_t branch_type,
                                       : GENCODE_FROM_DCONTEXT));
 }
 
+#ifdef LINUX_KERNEL
 ibl_code_t *
 get_ibl_code_from_routine_pc(dcontext_t *dcontext, cache_pc pc)
 {
     ibl_source_fragment_type_t source_fragment_type;
     ibl_branch_type_t branch_type;
-#if defined(X86) && defined(X64)
+#    if defined(X86) && defined(X64)
     gencode_mode_t mode;
-#endif
+#    endif
 
     for (source_fragment_type = IBL_SOURCE_TYPE_START;
          source_fragment_type < IBL_SOURCE_TYPE_END; source_fragment_type++) {
         for (branch_type = IBL_BRANCH_TYPE_START; branch_type < IBL_BRANCH_TYPE_END;
              branch_type++) {
-#if defined(X86) && defined(X64)
+#    if defined(X86) && defined(X64)
             for (mode = GENCODE_X64; mode <= GENCODE_X86_TO_X64; mode++) {
-#endif
+#    endif
                 ibl_code_t *code = get_ibl_routine_code_internal(
                     dcontext, source_fragment_type, branch_type _IF_X86_64(mode));
                 if (code != NULL && code->initialized &&
@@ -2688,13 +2695,14 @@ get_ibl_code_from_routine_pc(dcontext_t *dcontext, cache_pc pc)
                     pc < code->indirect_branch_lookup_routine_end) {
                     return code;
                 }
-#if defined(X86) && defined(X64)
+#    if defined(X86) && defined(X64)
             }
-#endif
+#    endif
         }
     }
     return NULL;
 }
+#endif
 
 #ifdef WINDOWS
 /* XXX We support a private and shared fragments simultaneously targeting
