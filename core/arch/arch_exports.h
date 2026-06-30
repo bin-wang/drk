@@ -1967,6 +1967,9 @@ get_syscall_entry(dcontext_t *dcontext);
 cache_pc
 get_vector_entry(dcontext_t *dcontext, interrupt_vector_t vector);
 
+void
+clean_call_clear_saved_interrupt_flag(dcontext_t *dcontext, byte *sp);
+
 #endif /* LINUX_KERNEL */
 
 #endif /* _ARCH_EXPORTS_H_ */

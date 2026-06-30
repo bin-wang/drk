@@ -863,6 +863,19 @@ insert_clean_call_with_arg_jmp_if_ret_true(dcontext_t *dcontext, instrlist_t *il
     instr_set_target(jcc, opnd_create_instr(false_popa));
 }
 
+#ifdef LINUX_KERNEL
+void
+clean_call_clear_saved_interrupt_flag(dcontext_t *dcontext, byte *sp)
+{
+    priv_mcontext_t *mc = get_priv_mcontext_from_dstack(dcontext);
+    if (sp <= (byte *)&mc->xflags) {
+        /* Clean call pushes 0 before it pushes xflags. */
+        ASSERT(mc->pc == 0);
+        mc->xflags &= ~EFLAGS_IF;
+    }
+}
+#endif
+
 /* If !precise, encode_pc is treated as +- a page (meant for clients
  * writing an instrlist to gencode so not sure of exact placement but
  * within a page).
