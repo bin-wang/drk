@@ -113,6 +113,13 @@ os_heap_init(void);
 void
 os_heap_exit(void);
 
+#ifdef LINUX_KERNEL
+/* Called on each thread right before dispatching starts. This can be used to
+ * warm the fragment cache.
+ */
+void os_warm_fcache(dcontext_t* dcontext);
+#endif
+
 /* os provided heap routines */
 /* caller is required to handle thread synchronization and to update dynamo vm areas.
  * size must be PAGE_SIZE-aligned.
