@@ -118,7 +118,10 @@ bool
 instrument_restore_nonfcache_state_prealloc(dcontext_t *dcontext, bool restore_memory,
                                             DR_PARAM_INOUT priv_mcontext_t *mcontext,
                                             DR_PARAM_OUT dr_mcontext_t *client_mcontext);
-
+#ifdef LINUX_KERNEL
+bool
+instrument_interrupt(dcontext_t *dcontext, dr_interrupt_t *interrupt);
+#endif
 module_data_t *
 copy_module_area_to_module_data(const module_area_t *area);
 void
