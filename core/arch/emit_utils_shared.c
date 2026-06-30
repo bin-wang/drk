@@ -3295,12 +3295,15 @@ append_ibl_found(dcontext_t *dcontext, instrlist_t *ilist, ibl_code_t *ibl_code,
         } else {
             APP(ilist, SAVE_TO_TLS(dcontext, SCRATCH_REG2, INDIRECT_STUB_SPILL_SLOT));
 #if defined(X86) && defined(X64)
-            if (x86_to_x64_ibl_opt)
+            if (x86_to_x64_ibl_opt) {
                 APP(ilist, RESTORE_FROM_REG(dcontext, SCRATCH_REG2, REG_R9));
-            else
-#endif
+            } else {
                 APP(ilist,
                     RESTORE_FROM_TLS(dcontext, SCRATCH_REG2, MANGLE_XCX_SPILL_SLOT));
+            }
+#else
+            APP(ilist, RESTORE_FROM_TLS(dcontext, SCRATCH_REG2, MANGLE_XCX_SPILL_SLOT));
+#endif
 #if defined(AARCH64) || defined(RISCV64)
             ASSERT_NOT_IMPLEMENTED(false); /* TODO i#1569 i#3544 */
 #else
