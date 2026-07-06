@@ -683,6 +683,7 @@ internal_opnd_disassemble(char *buf, size_t bufsz, size_t *sofar DR_PARAM_INOUT,
         }
     } break;
     case IMMED_FLOAT_kind: {
+#ifndef LINUX_KERNEL
         /* Save floating state for float printing. */
         PRESERVE_FLOATING_POINT_STATE({
             uint top;
@@ -692,6 +693,10 @@ internal_opnd_disassemble(char *buf, size_t bufsz, size_t *sofar DR_PARAM_INOUT,
             print_to_buffer(buf, bufsz, sofar, "%s%s%u.%.6u", immed_prefix(), sign, top,
                             bottom);
         });
+#else
+        print_to_buffer(buf, bufsz, sofar, "%s0x%08x /* float */", immed_prefix(),
+                        *(const uint *)(&opnd.value.immed_float));
+#endif
         break;
     }
 #ifndef WINDOWS
@@ -700,6 +705,7 @@ internal_opnd_disassemble(char *buf, size_t bufsz, size_t *sofar DR_PARAM_INOUT,
          * not equal EXPECTED_SIZEOF_OPND, triggering the ASSERT in d_r_arch_init().
          */
     case IMMED_DOUBLE_kind: {
+#    ifndef LINUX_KERNEL
         PRESERVE_FLOATING_POINT_STATE({
             uint top;
             uint bottom;
@@ -708,6 +714,10 @@ internal_opnd_disassemble(char *buf, size_t bufsz, size_t *sofar DR_PARAM_INOUT,
             print_to_buffer(buf, bufsz, sofar, "%s%s%u.%.6u", immed_prefix(), sign, top,
                             bottom);
         });
+#    else
+        print_to_buffer(buf, bufsz, sofar, "%s0x" ZHEX64_FORMAT_STRING " /* double */",
+                        immed_prefix(), *(const uint64 *)(&opnd.value.immed_double));
+#    endif
         break;
     }
 #endif
