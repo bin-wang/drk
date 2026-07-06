@@ -935,7 +935,7 @@ get_call_return_address(dcontext_t *dcontext, instrlist_t *ilist, instr_t *instr
     return retaddr;
 }
 
-#ifdef UNIX
+#if defined(UNIX) && !defined(LINUX_KERNEL)
 /* find the system call number in instrlist for an inlined system call
  * by simpling walking the ilist backward and finding "mov immed => %eax"
  * without checking cti or expanding instr
@@ -960,7 +960,7 @@ static void
 mangle_syscall(dcontext_t *dcontext, instrlist_t *ilist, uint flags, instr_t *instr,
                instr_t *next_instr)
 {
-#ifdef UNIX
+#if defined(UNIX) && !defined(LINUX_KERNEL)
     if (get_syscall_method() != SYSCALL_METHOD_INT &&
         get_syscall_method() != SYSCALL_METHOD_SYSCALL &&
         get_syscall_method() != SYSCALL_METHOD_SYSENTER &&
@@ -1019,12 +1019,12 @@ mangle_syscall(dcontext_t *dcontext, instrlist_t *ilist, uint flags, instr_t *in
         instr_set_app(instr);
         instrlist_postinsert(ilist, instr, nop);
     }
-#endif /* UNIX */
+#endif /* UNIX && !LINUX_KERNEL */
 
     mangle_syscall_arch(dcontext, ilist, flags, instr, next_instr);
 }
 
-#ifdef UNIX
+#if defined(UNIX) && !defined(LINUX_KERNEL)
 /* If skip is false:
  *   changes the jmp right before the next syscall (after pc) to target the
  *   exit cti immediately following it;
@@ -1136,9 +1136,9 @@ mangle_syscall_code(dcontext_t *dcontext, fragment_t *f, byte *pc, bool skip)
     instr_free(dcontext, &instr);
     return true;
 }
-#endif /* UNIX */
+#endif /* UNIX && !LINUX_KERNEL */
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
 /***************************************************************************
  * Rseq (restartable sequence) mangling.
  */
@@ -1826,7 +1826,7 @@ mangle_rseq_finalize(dcontext_t *dcontext, instrlist_t *ilist, fragment_t *f)
     /* We should have found at least one set of labels. */
     ASSERT(label_sets_found > 0);
 }
-#endif /* LINUX */
+#endif /* LINUX && !LINUX_KERNEL */
 
 /* TOP-LEVEL MANGLE
  * This routine is responsible for mangling a fragment into the form
@@ -1914,7 +1914,7 @@ d_r_mangle(dcontext_t *dcontext, instrlist_t *ilist, uint *flags DR_PARAM_INOUT,
             translate_x86_to_x64(dcontext, ilist, &instr);
 #endif
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
         /* Mangle stores inside restartable sequences ("rseq").  We could avoid the
          * per-instr check if we disallowed rseq blocks in traces and prevented
          * fall-through in a bb, but that would lead to more problems than it would
@@ -2211,6 +2211,7 @@ cti_is_normal_elision(instr_t *instr)
  * (although -1 is invalid), so be sure to test for -1 and not just <0 as a failure
  * code.
  */
+#ifndef LINUX_KERNEL
 int
 find_syscall_num(dcontext_t *dcontext, instrlist_t *ilist, instr_t *instr)
 {
@@ -2330,6 +2331,7 @@ find_syscall_num(dcontext_t *dcontext, instrlist_t *ilist, instr_t *instr)
     IF_X64(ASSERT_TRUNCATE(int, int, syscall));
     return (int)syscall;
 }
+#endif /* !LINUX_KERNEL */
 
 void
 mangle_finalize(dcontext_t *dcontext, instrlist_t *ilist, fragment_t *f)
@@ -2339,7 +2341,7 @@ mangle_finalize(dcontext_t *dcontext, instrlist_t *ilist, fragment_t *f)
         finalize_selfmod_sandbox(dcontext, f);
     }
 #endif
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
     if (TEST(INSTR_RSEQ_ENDPOINT, ilist->flags))
         mangle_rseq_finalize(dcontext, ilist, f);
 #endif

@@ -167,7 +167,7 @@ instr_is_seg_ref_load(dcontext_t *dcontext, instr_t *inst)
 static inline bool
 instr_is_rseq_mangling(dcontext_t *dcontext, instr_t *inst)
 {
-#    ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
     /* This won't fault but we don't want it marked as unsupported. */
     if (!instr_is_our_mangling(inst))
         return false;
@@ -214,7 +214,7 @@ instr_is_rseq_mangling(dcontext_t *dcontext, instr_t *inst)
         opnd_get_disp(instr_get_dst(inst, 0)) == rseq_get_tls_ptr_offset())
         return true;
 #        endif
-#    endif
+#    endif /* LINUX && !LINUX_KERNEL */
     return false;
 }
 #endif /* UNIX */
@@ -768,7 +768,7 @@ translate_restore_clean_call(dcontext_t *tdcontext, translate_walk_t *walk)
 app_pc
 translate_restore_special_cases(dcontext_t *dcontext, app_pc pc)
 {
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
     app_pc handler;
     if (rseq_get_region_info(pc, NULL, NULL, &handler, NULL, NULL)) {
         LOG(THREAD_GET, LOG_INTERP, 2,
@@ -786,7 +786,7 @@ translate_restore_special_cases(dcontext_t *dcontext, app_pc pc)
 app_pc
 translate_last_direct_translation(dcontext_t *dcontext, app_pc pc)
 {
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
     app_pc handler;
     if (dcontext->client_data->last_special_xl8 != NULL &&
         rseq_get_region_info(dcontext->client_data->last_special_xl8, NULL, NULL,
@@ -800,7 +800,7 @@ translate_last_direct_translation(dcontext_t *dcontext, app_pc pc)
 void
 translate_clear_last_direct_translation(dcontext_t *dcontext)
 {
-#ifdef LINUX
+#if defined(LINUX) && !defined(LINUX_KERNEL)
     dcontext->client_data->last_special_xl8 = NULL;
 #endif
 }
