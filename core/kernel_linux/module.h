@@ -66,6 +66,8 @@ typedef struct _module_segment_t {
     app_pc start;
     app_pc end;
     uint prot;
+    bool shared; /* not unique to this module */
+    uint64 offset;
 } module_segment_t;
 
 typedef struct _os_module_data_t {
