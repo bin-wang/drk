@@ -753,7 +753,7 @@ internal_opnd_disassemble(char *buf, size_t bufsz, size_t *sofar DR_PARAM_INOUT,
 #if defined(X64) || defined(ARM)
     case REL_ADDR_kind:
         print_to_buffer(buf, bufsz, sofar, "<rel> ");
-        /* fall-through */
+        DR_FALLTHROUGH;
 #    ifdef X64
     case ABS_ADDR_kind:
 #    endif
@@ -780,7 +780,7 @@ internal_opnd_disassemble(char *buf, size_t bufsz, size_t *sofar DR_PARAM_INOUT,
         case REG_kind:
             if (!opnd_is_reg_partial(opnd))
                 break;
-            /* fall-through */
+            DR_FALLTHROUGH;
         default: {
             opnd_size_t opnd_sz = opnd_get_size(opnd);
             const char *size_str = opnd_size_suffix_dr(opnd_sz);
