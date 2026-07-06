@@ -2184,6 +2184,7 @@ d_r_mangle(dcontext_t *dcontext, instrlist_t *ilist, uint *flags DR_PARAM_INOUT,
  * SYSCALL
  */
 
+#ifndef LINUX_KERNEL
 static bool
 cti_is_normal_elision(instr_t *instr)
 {
@@ -2211,7 +2212,6 @@ cti_is_normal_elision(instr_t *instr)
  * (although -1 is invalid), so be sure to test for -1 and not just <0 as a failure
  * code.
  */
-#ifndef LINUX_KERNEL
 int
 find_syscall_num(dcontext_t *dcontext, instrlist_t *ilist, instr_t *instr)
 {
