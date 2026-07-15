@@ -2301,7 +2301,7 @@ mutex_wait_contended_lock(mutex_t *lock, priv_mcontext_t *mc)
      * If we do use a true wait need to set client_thread_safe_for_synch around it */
 
     /* we now have to undo our earlier request */
-    d_r_atomic_dec_and_test(&lock->lock_requests);
+    atomic_dec_and_test(&lock->lock_requests);
 
     while (!d_r_mutex_trylock(lock)) {
         if (dcontext != NULL && IS_CLIENT_THREAD(dcontext) &&
