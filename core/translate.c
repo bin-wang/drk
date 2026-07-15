@@ -919,6 +919,22 @@ recreate_app_state_from_info(dcontext_t *tdcontext, const translation_info_t *in
          * xl8 we could be before setup or after teardown of the mcontext on the
          * dstack, and with leaner clean calls we might not have the full mcontext.
          */
+#ifdef LINUX_KERNEL
+        if (answer == NULL) {
+            for (; i < info->num_entries; i++) {
+                if (info->translation[i].app != NULL)
+                    break;
+            }
+            ASSERT(i < info->num_entries);
+            if (i < info->num_entries) {
+                mc->pc = start_cache + info->translation[i].cache_offs;
+                return RECREATE_DELAY_UNTIL_PC;
+            } else {
+                return RECREATE_DELAY_UNTIL_DISPATCH;
+            }
+        }
+#endif
+
         if (answer == NULL && walk.in_clean_call)
             translate_restore_clean_call(tdcontext, &walk);
         else
@@ -1077,6 +1093,26 @@ recreate_app_state_from_ilist(dcontext_t *tdcontext, instrlist_t *ilist, byte *s
                  * in the middle of client meta code.
                  */
                 ASSERT(instr_is_meta(inst));
+#ifdef LINUX_KERNEL
+                /* We delay interrupts until the next non-meta instruction. */
+                if (!instr_ok_to_mangle(inst)) {
+                    instr_t *next_non_meta = inst;
+                    byte *patch_pc = cpc;
+                    for (;;) {
+                        patch_pc += instr_length(tdcontext, next_non_meta);
+                        next_non_meta = instr_get_next(next_non_meta);
+                        if (next_non_meta == NULL) {
+                            /* There are only meta instructions following instr. */
+                            ASSERT(false);
+                            return RECREATE_DELAY_UNTIL_DISPATCH;
+                        }
+                        if (instr_ok_to_mangle(next_non_meta)) {
+                            mc->pc = patch_pc;
+                            return RECREATE_DELAY_UNTIL_PC;
+                        }
+                    }
+                }
+#endif
                 /* PR 302951: our clean calls do show up here and have full state.
                  * XXX i#4219: This is not safe: see comment above.
                  */
@@ -1269,15 +1305,26 @@ restore_stolen_register(dcontext_t *dcontext, priv_mcontext_t *mcontext)
 /* Use THREAD_GET instead of THREAD so log messages go to calling thread */
 /* Also see NOTEs at recreate_app_state() about lock usage, and lack of full stack
  * translation. */
+#ifdef LINUX_KERNEL
+#    define RESTORE_NONFCACHE_STATE(dc, restore_mem, mc) \
+        instrument_restore_nonfcache_state(dc, restore_mem, mc)
+#else
+#    define RESTORE_NONFCACHE_STATE(dc, restore_mem, mc) \
+        (!dr_xl8_hook_exists() ||                        \
+         instrument_restore_nonfcache_state_prealloc(dc, restore_mem, mc, &xl8_mcontext))
+#endif
+
 static recreate_success_t
 recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
                             bool just_pc, fragment_t *owning_f, bool restore_memory)
 {
     recreate_success_t res = (just_pc ? RECREATE_SUCCESS_PC : RECREATE_SUCCESS_STATE);
+#ifndef LINUX_KERNEL
     dr_mcontext_t xl8_mcontext;
     dr_mcontext_t raw_mcontext;
     dr_mcontext_init(&xl8_mcontext);
     dr_mcontext_init(&raw_mcontext);
+#endif
 #ifdef WINDOWS
     if (get_syscall_method() == SYSCALL_METHOD_SYSENTER &&
         mcontext->pc == vsyscall_after_syscall && mcontext->xsp != 0) {
@@ -1294,11 +1341,8 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
                 "recreate_app no translation needed (at vsyscall)\n");
             if (!just_pc)
                 restore_stolen_register(tdcontext, mcontext);
-            if (dr_xl8_hook_exists()) {
-                if (!instrument_restore_nonfcache_state_prealloc(
-                        tdcontext, restore_memory, mcontext, &xl8_mcontext))
-                    return RECREATE_FAILURE;
-            }
+            if (!RESTORE_NONFCACHE_STATE(tdcontext, restore_memory, mcontext))
+                return RECREATE_FAILURE;
             return res;
         } else {
             /* this is a dynamo system call! */
@@ -1351,11 +1395,8 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
 #    endif
         if (!just_pc)
             restore_stolen_register(tdcontext, mcontext);
-        if (dr_xl8_hook_exists()) {
-            if (!instrument_restore_nonfcache_state_prealloc(tdcontext, restore_memory,
-                                                             mcontext, &xl8_mcontext))
-                return RECREATE_FAILURE;
-        }
+        if (!RESTORE_NONFCACHE_STATE(tdcontext, restore_memory, mcontext))
+            return RECREATE_FAILURE;
         return res;
     }
 #endif
@@ -1399,11 +1440,8 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
         mcontext->pc = POST_SYSCALL_PC(tdcontext);
         if (!just_pc)
             restore_stolen_register(tdcontext, mcontext);
-        if (dr_xl8_hook_exists()) {
-            if (!instrument_restore_nonfcache_state_prealloc(tdcontext, restore_memory,
-                                                             mcontext, &xl8_mcontext))
-                return RECREATE_FAILURE;
-        }
+        if (!RESTORE_NONFCACHE_STATE(tdcontext, restore_memory, mcontext))
+            return RECREATE_FAILURE;
         return res;
     } else if (mcontext->pc == get_reset_exit_stub(tdcontext)) {
         LOG(THREAD_GET, LOG_INTERP | LOG_SYNCH, 2,
@@ -1413,11 +1451,8 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
         mcontext->pc = tdcontext->next_tag;
         if (!just_pc)
             restore_stolen_register(tdcontext, mcontext);
-        if (dr_xl8_hook_exists()) {
-            if (!instrument_restore_nonfcache_state_prealloc(tdcontext, restore_memory,
-                                                             mcontext, &xl8_mcontext))
-                return RECREATE_FAILURE;
-        }
+        if (!RESTORE_NONFCACHE_STATE(tdcontext, restore_memory, mcontext))
+            return RECREATE_FAILURE;
         return res;
     } else if (in_generated_routine(tdcontext, mcontext->pc)) {
         LOG(THREAD_GET, LOG_INTERP | LOG_SYNCH, 2,
@@ -1529,6 +1564,18 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
             /* target is inside an exit stub!
              * new target: the exit cti, not its stub
              */
+#ifdef LINUX_KERNEL
+            if (!just_pc) {
+                LOG(THREAD_GET, LOG_INTERP | LOG_SYNCH, 2,
+                    "recreate_app_helper -- can't full recreate state, pc " PFX " "
+                    "is in exit stub\n",
+                    mcontext->pc);
+                /* Failed on full state, but pc good. Can get full state if delayed until
+                 * next dispatch. */
+                res = RECREATE_DELAY_UNTIL_DISPATCH;
+                goto recreate_app_state_done;
+            }
+#else
             if (!just_pc) {
                 /* XXX : translate from exit stub */
                 LOG(THREAD_GET, LOG_INTERP | LOG_SYNCH, 2,
@@ -1538,6 +1585,7 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
                 res = RECREATE_SUCCESS_PC; /* failed on full state, but pc good */
                 goto recreate_app_state_done;
             }
+#endif
             LOG(THREAD_GET, LOG_INTERP | LOG_SYNCH, 2,
                 "\ttarget " PFX " is inside an exit stub, looking for its cti "
                 " " PFX "\n",
@@ -1551,9 +1599,16 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
         ASSERT(ok);
 
         /* now recreate the state */
+#ifdef LINUX_KERNEL
+        dr_mcontext_t *raw_mc =
+            HEAP_TYPE_ALLOC(tdcontext, dr_mcontext_t, ACCT_OTHER, PROTECTED);
+        dr_mcontext_init(raw_mc);
+#else
+        dr_mcontext_t *raw_mc = &raw_mcontext;
+#endif
         /* keep a copy of the pre-translation state */
-        priv_mcontext_to_dr_mcontext(&raw_mcontext, mcontext);
-        client_info.raw_mcontext = &raw_mcontext;
+        priv_mcontext_to_dr_mcontext(raw_mc, mcontext);
+        client_info.raw_mcontext = raw_mc;
         client_info.raw_mcontext_valid = true;
         if (ilist == NULL) {
             ASSERT(f != NULL && FRAGMENT_TRANSLATION_INFO(f) != NULL);
@@ -1574,12 +1629,23 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
 
         if (!just_pc)
             restore_stolen_register(tdcontext, mcontext);
-        if (res != RECREATE_FAILURE) {
+        if (res != RECREATE_FAILURE
+#ifdef LINUX_KERNEL
+            && res != RECREATE_DELAY_UNTIL_DISPATCH && res != RECREATE_DELAY_UNTIL_PC
+#endif
+        ) {
             /* PR 214962: if the client has a restore callback, invoke it to
              * fix up the state (and pc).
              */
-            priv_mcontext_to_dr_mcontext(&xl8_mcontext, mcontext);
-            client_info.mcontext = &xl8_mcontext;
+#ifdef LINUX_KERNEL
+            dr_mcontext_t *xl8_mc =
+                HEAP_TYPE_ALLOC(tdcontext, dr_mcontext_t, ACCT_OTHER, PROTECTED);
+            dr_mcontext_init(xl8_mc);
+#else
+            dr_mcontext_t *xl8_mc = &xl8_mcontext;
+#endif
+            priv_mcontext_to_dr_mcontext(xl8_mc, mcontext);
+            client_info.mcontext = xl8_mc;
             client_info.fragment_info.tag = (void *)f->tag;
             client_info.fragment_info.cache_start_pc = FCACHE_ENTRY_PC(f);
             client_info.fragment_info.is_trace = TEST(FRAG_IS_TRACE, f->flags);
@@ -1589,8 +1655,14 @@ recreate_app_state_internal(dcontext_t *tdcontext, priv_mcontext_t *mcontext,
             /* i#220/PR 480565: client has option of failing the translation */
             if (!instrument_restore_state(tdcontext, restore_memory, &client_info))
                 res = RECREATE_FAILURE;
-            dr_mcontext_to_priv_mcontext(mcontext, &xl8_mcontext);
+            dr_mcontext_to_priv_mcontext(mcontext, xl8_mc);
+#ifdef LINUX_KERNEL
+            HEAP_TYPE_FREE(tdcontext, xl8_mc, dr_mcontext_t, ACCT_OTHER, PROTECTED);
+#endif
         }
+#ifdef LINUX_KERNEL
+        HEAP_TYPE_FREE(tdcontext, raw_mc, dr_mcontext_t, ACCT_OTHER, PROTECTED);
+#endif
 
     recreate_app_state_done:
         /* free the instrlist_t elements */
@@ -1643,6 +1715,13 @@ recreate_app_pc(dcontext_t *tdcontext, cache_pc pc, fragment_t *f)
     mc.pc = pc;
 
     res = recreate_app_state_internal(tdcontext, &mc, true, f, false);
+#ifdef LINUX_KERNEL
+    if (res == RECREATE_DELAY_UNTIL_PC) {
+        /* Have to try again because RECREATE_DELAY_UNTIL_PC returns the next
+         * fcache pc. */
+        res = recreate_app_state_internal(tdcontext, &mc, true, f, false);
+    }
+#endif
     if (res != RECREATE_SUCCESS_PC) {
         ASSERT(res != RECREATE_SUCCESS_STATE); /* shouldn't return that for just_pc */
         ASSERT(in_fcache(pc));                 /* Make sure caller didn't screw up */
