@@ -30,7 +30,6 @@ dynamorio-objs :=\
 ../../fragment.o\
 ../../hashtable.o\
 ../../heap.o\
-../../hotpatch.o\
 ../../ir/instrlist.o\
 ../../io.o\
 ../../link.o\
@@ -40,9 +39,7 @@ dynamorio-objs :=\
 ../../monitor.o\
 ../../nudge.o\
 ../../options.o\
-../../perfctr.o\
 ../../perscache.o\
-../../rct.o\
 ../../stats.o\
 ../../synch.o\
 ../../utils.o\
